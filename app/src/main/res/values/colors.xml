@@ -1,0 +1,71 @@
+<!--
+  ============================================================================
+   colors.xml — THE APP'S COLOR PALETTE
+  ============================================================================
+
+   WHY THIS FILE EXISTS:
+   Instead of writing color codes (#FF0000) directly in our layouts, we
+   define named colors here. This way, if we want to change the emergency
+   red shade, we change it in ONE place and it updates everywhere.
+
+   OUR DESIGN PHILOSOPHY:
+   This is a disaster/emergency app. The color scheme must:
+     - Use DARK backgrounds (saves battery on OLED screens — critical!)
+     - Use HIGH CONTRAST colors (readable in bright sunlight or dark rubble)
+     - Use RED for danger/SOS and GREEN for safe/connected
+     - Feel serious and trustworthy, not playful
+  ============================================================================
+-->
+<resources>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  PRIMARY COLORS — The app's main identity                      -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Deep dark background — nearly black, saves battery on OLED screens -->
+    <color name="background_primary">#FF0D1117</color>
+    <!-- Slightly lighter dark — for cards, panels, elevated surfaces -->
+    <color name="background_card">#FF161B22</color>
+    <!-- Even lighter — for input fields and secondary surfaces -->
+    <color name="background_surface">#FF21262D</color>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  STATUS COLORS — Communicate urgency at a glance               -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Emergency Red — SOS alerts, danger indicators -->
+    <color name="emergency_red">#FFFF4444</color>
+    <!-- Pulsing red glow — for the SOS button's animated halo -->
+    <color name="emergency_red_glow">#66FF4444</color>
+
+    <!-- Safe Green — connected status, all-clear indicators -->
+    <color name="safe_green">#FF00C853</color>
+    <color name="safe_green_dim">#6600C853</color>
+
+    <!-- Warning Amber — moderate alerts, connecting status -->
+    <color name="warning_amber">#FFFFAB00</color>
+
+    <!-- Info Blue — neutral information, peer count -->
+    <color name="info_blue">#FF448AFF</color>
+    <color name="info_blue_dim">#66448AFF</color>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  TEXT COLORS                                                    -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Primary text — bright white for maximum readability -->
+    <color name="text_primary">#FFF0F6FC</color>
+    <!-- Secondary text — dimmed for less important info -->
+    <color name="text_secondary">#FF8B949E</color>
+    <!-- Disabled/hint text -->
+    <color name="text_hint">#FF484F58</color>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  MATERIAL THEME COLORS (required by Material Design library)    -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <color name="colorPrimary">#FFFF4444</color>
+    <color name="colorPrimaryVariant">#FFCC0000</color>
+    <color name="colorOnPrimary">#FFFFFFFF</color>
+    <color name="colorSecondary">#FF448AFF</color>
+    <color name="colorSecondaryVariant">#FF1565C0</color>
+    <color name="colorOnSecondary">#FFFFFFFF</color>
+</resources>
