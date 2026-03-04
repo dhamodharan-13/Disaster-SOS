@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ============================================================================
+   item_alert.xml — ONE SOS ALERT CARD IN THE LOG
+  ============================================================================
+
+   WHAT IS THIS?
+   Each SOS alert in the Alert Log is displayed using THIS layout.
+   RecyclerView creates multiple copies of this layout — one per alert.
+
+   WHY A CARD?
+   Cards provide visual separation between alerts. In a stressful
+   disaster scenario, clear visual boundaries help users quickly scan
+   through multiple alerts without confusion.
+
+   LAYOUT:
+   ┌─────────────────────────────────────────┐
+   │  🚨 SOS from Node abc123     12:45:30   │
+   │  📍 11.0168, 76.9558                    │
+   │  🎯 Confidence: 92%    🔋 Battery: 45%  │
+   │  📡 Hops: 3                             │
+   └─────────────────────────────────────────┘
+  ============================================================================
+-->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardBackgroundColor="@color/background_card"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Row 1: Distress type + Timestamp -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <!-- Distress type label (e.g., "🚨 SCREAM Detected") -->
+            <TextView
+                android:id="@+id/tvAlertType"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🚨 SCREAM Detected"
+                android:textColor="@color/emergency_red"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <!-- When the SOS was created -->
+            <TextView
+                android:id="@+id/tvAlertTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="12:45:30"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Row 2: Node ID -->
+        <TextView
+            android:id="@+id/tvAlertNodeId"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Node: abc123"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Row 3: GPS Coordinates -->
+        <TextView
+            android:id="@+id/tvAlertLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📍 11.0168, 76.9558"
+            android:textColor="@color/info_blue"
+            android:textSize="13sp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Row 4: Confidence + Battery + Hops -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvAlertConfidence"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🎯 Confidence: 92%"
+                android:textColor="@color/safe_green"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvAlertBattery"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🔋 45%"
+                android:textColor="@color/warning_amber"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvAlertHops"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📡 3 hops"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

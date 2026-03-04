@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ============================================================================
+   activity_main.xml — THE MAIN DASHBOARD SCREEN
+  ============================================================================
+
+   WHY THIS FILE EXISTS:
+   This XML file defines WHAT the user sees on the phone screen.
+   Think of it as the blueprint of a room — it says where the walls,
+   windows, and furniture go. The Kotlin code (MainActivity.kt) then
+   makes these elements interactive (like adding electricity to the room).
+
+   LAYOUT STRUCTURE (top to bottom):
+   ┌─────────────────────────────────────┐
+   │  🔴 STATUS INDICATOR                │  ← "Listening..." / "ALERT!"
+   ├─────────────────────────────────────┤
+   │  📡 MESH STATUS CARD                │  ← Peer count, network status
+   ├─────────────────────────────────────┤
+   │  🆘 SOS BUTTON                      │  ← Big red manual panic button
+   ├─────────────────────────────────────┤
+   │  📋 ALERT LOG                       │  ← Scrollable list of received SOSes
+   └─────────────────────────────────────┘
+
+   WHY ConstraintLayout:
+   It's the most efficient layout for Android. Instead of nesting layouts
+   inside layouts (which slows down rendering), ConstraintLayout lets us
+   position every element relative to each other in a FLAT structure.
+   Flat = faster rendering = less battery usage.
+  ============================================================================
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_primary"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <!--  APP HEADER                                                 -->
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Disaster SOS"
+                android:textColor="@color/text_primary"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <!-- Battery indicator — shows how much power is left -->
+            <TextView
+                android:id="@+id/tvBatteryLevel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔋 100%"
+                android:textColor="@color/safe_green"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <!--  STATUS INDICATOR CARD                                      -->
+        <!--  ──────────────────────────────────────────────────────────  -->
+        <!--  This is the MOST IMPORTANT visual element on the screen.   -->
+        <!--  It tells the user instantly: "Am I being protected?"       -->
+        <!--  The background color changes:                              -->
+        <!--    🟢 Green = Listening, everything is OK                   -->
+        <!--    🔴 Red = Distress detected, SOS is being sent            -->
+        <!--    🟡 Amber = Connecting to mesh, please wait               -->
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/background_card"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:gravity="center">
+
+                <!-- Status icon — pulses when active -->
+                <TextView
+                    android:id="@+id/tvStatusIcon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🟢"
+                    android:textSize="48sp"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Main status text -->
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/status_listening"
+                    android:textColor="@color/safe_green"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:gravity="center" />
+
+                <!-- AI Confidence display -->
+                <TextView
+                    android:id="@+id/tvConfidence"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AI Confidence: --"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginTop="8dp" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <!--  MESH NETWORK STATUS CARD                                   -->
+        <!--  Shows how many nearby phones are connected to the mesh.    -->
+        <!--  If peers = 0, the SOS has nowhere to go.                   -->
+        <!--  If peers > 0, the bucket brigade is ready!                 -->
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardMesh"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/background_card"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="20dp"
+                android:gravity="center_vertical">
+
+                <!-- Mesh icon -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📡"
+                    android:textSize="32sp"
+                    android:layout_marginEnd="16dp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvMeshStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mesh_inactive"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvPeerCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/peers_none"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
+                <!-- Peer count badge -->
+                <TextView
+                    android:id="@+id/tvPeerBadge"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@color/info_blue_dim"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/info_blue"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <!--  GPS LOCATION CARD                                          -->
+        <!--  Shows the phone's current GPS coordinates.                 -->
+        <!--  Reminds users that GPS works WITHOUT internet.             -->
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/background_card"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="20dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📍"
+                    android:textSize="28sp"
+                    android:layout_marginEnd="16dp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="GPS Location"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvGpsCoordinates"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Acquiring location…"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <!--  THE SOS BUTTON                                             -->
+        <!--  ──────────────────────────────────────────────────────────  -->
+        <!--  The centerpiece of the app. A big, unmistakable red button -->
+        <!--  that a victim can press even with shaking hands, in the    -->
+        <!--  dark, while injured. Design principles:                    -->
+        <!--    - LARGE (easy to find by touch)                          -->
+        <!--    - RED (universally understood as "emergency")            -->
+        <!--    - HIGH CONTRAST text (readable in any lighting)          -->
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSOS"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_marginBottom="24dp"
+            android:text="@string/sos_button_text"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorOnPrimary"
+            app:backgroundTint="@color/emergency_red"
+            app:cornerRadius="16dp"
+            app:rippleColor="@color/emergency_red_glow"
+            app:icon="@android:drawable/ic_dialog_alert"
+            app:iconGravity="textStart"
+            app:iconTint="@color/colorOnPrimary" />
+
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <!--  ACTIVATE / DEACTIVATE LISTENING BUTTON                     -->
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnToggleListening"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginBottom="24dp"
+            android:text="🎤 Start Listening"
+            android:textSize="16sp"
+            android:textColor="@color/safe_green"
+            app:strokeColor="@color/safe_green"
+            app:strokeWidth="2dp"
+            app:cornerRadius="16dp" />
+
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <!--  ALERT LOG SECTION                                          -->
+        <!--  ──────────────────────────────────────────────────────────  -->
+        <!--  A scrollable list showing ALL SOS alerts received from     -->
+        <!--  other phones in the mesh network. Each entry shows:        -->
+        <!--    - Who sent it (Node ID)                                  -->
+        <!--    - Their GPS coordinates                                  -->
+        <!--    - The AI's confidence level                              -->
+        <!--    - Timestamp                                              -->
+        <!--                                                             -->
+        <!--  We use RecyclerView (not ListView) because:                -->
+        <!--    - It "recycles" off-screen items to save memory          -->
+        <!--    - Critical when battery/memory must be conserved         -->
+        <!--    - Can handle thousands of alerts without lag             -->
+        <!-- ════════════════════════════════════════════════════════════ -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/alert_log_title"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Empty state message — shown when no alerts have been received -->
+        <TextView
+            android:id="@+id/tvEmptyLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/alert_log_empty"
+            android:textColor="@color/text_hint"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:padding="32dp" />
+
+        <!-- The actual scrollable list of alert cards -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvAlertLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</ScrollView>

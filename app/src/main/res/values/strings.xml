@@ -1,0 +1,41 @@
+<!--
+  strings.xml — ALL USER-FACING TEXT IN ONE PLACE
+  ================================================
+  WHY: If you ever want to translate the app to Tamil, Hindi, etc.,
+  you just create a new strings.xml for that language. The code stays the same.
+-->
+<resources>
+    <string name="app_name">Disaster SOS</string>
+
+    <!-- Dashboard Status Messages -->
+    <string name="status_listening">🎤 Listening for distress signals…</string>
+    <string name="status_alert_detected">🚨 DISTRESS DETECTED!</string>
+    <string name="status_idle">⏸ System Idle — Tap to Activate</string>
+    <string name="status_connecting">📡 Searching for nearby devices…</string>
+
+    <!-- SOS Button -->
+    <string name="sos_button_text">SEND SOS</string>
+    <string name="sos_button_description">Manual emergency SOS button</string>
+
+    <!-- Mesh Network -->
+    <string name="peers_connected">%d devices connected</string>
+    <string name="peers_none">No nearby devices found</string>
+    <string name="mesh_active">Mesh Network Active</string>
+    <string name="mesh_inactive">Mesh Network Inactive</string>
+
+    <!-- Alert Log -->
+    <string name="alert_log_title">Alert Log</string>
+    <string name="alert_log_empty">No alerts received yet</string>
+    <string name="alert_received_from">SOS from Node %s</string>
+    <string name="alert_confidence">Confidence: %d%%</string>
+
+    <!-- Permissions -->
+    <string name="permission_rationale_mic">Microphone access is needed to detect distress sounds automatically.</string>
+    <string name="permission_rationale_location">Location access is needed to attach GPS coordinates to SOS alerts.</string>
+    <string name="permission_rationale_wifi">Wi-Fi access is needed to form the offline mesh network with nearby phones.</string>
+
+    <!-- General -->
+    <string name="battery_level">Battery: %d%%</string>
+    <string name="gps_coordinates">📍 %1$.4f, %2$.4f</string>
+    <string name="timestamp_format">HH:mm:ss</string>
+</resources>
