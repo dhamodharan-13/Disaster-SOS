@@ -1,0 +1,60 @@
+# Project: DisasterSOS - Application Structure & Core Algorithm
+
+## 1. Application Structure (Folder Overview)
+The app is built with a modular architecture to handle real-time disaster detection and offline mesh networking.
+
+- **`data/`**: Data models and local storage helpers.
+    - `SOSPacket.kt`: The "postcard" blueprint for emergency messages (Location, Distress Type, Battery, etc.).
+    - `NodeInfo.kt`: Information about devices in the mesh.
+    - `PreferencesHelper.kt`: Manages user settings like Role (Victim/Rescuer).
+- **`mesh/`**: The "Postman" of the app. Handles networking without internet.
+    - `MeshManager.kt`: Controls Wi-Fi Direct discovery and TCP-based message broadcasting.
+    - `BluetoothMeshManager.kt`: Manages Bluetooth-based connectivity as a backup/alternative.
+    - `MessageRouter.kt`: Decides where and how to send/relay messages.
+- **`ml/`**: The "Ears" of the app.
+    - `AudioClassifier.kt`: Uses AI to identify sounds (Screams, Whistles).
+    - `DistressDetector.kt`: Monitors audio levels and triggers alerts when confidence is high.
+- **`service/`**: Background processes.
+    - `MeshService.kt`: Keeps the mesh network alive even when the app is in the background.
+- **`ui/`**: User Interface components.
+    - `MainActivity.kt`: Dashboard for sending SOS and viewing nearby alerts.
+    - `RoleSelectionActivity.kt`: First-time setup for choosing Victim or Rescuer mode.
+    - `CompassActivity.kt`: Visual guide for rescuers to navigate toward victims.
+
+---
+
+## 2. Core Algorithm: The "Bucket Brigade" Mesh SOS
+The app works like a human chain passing a bucket of water to put out a fire. Each phone acts as a relay node.
+
+### The Logic Flow:
+1. **Trigger Phase**:
+   - The **AI (AudioClassifier)** hears a sound.
+   - If it detects a "Scream" with **Confidence > 85%**, it triggers an SOS.
+   - *OR* The user manually presses the big **SOS Button**.
+
+2. **Packaging Phase**:
+   - The app grabs current **GPS Coordinates**.
+   - It creates an **SOSPacket** (JSON format) containing:
+     - Who: Unique Node ID
+     - Where: Lat/Long
+     - What: Distress Type (e.g., "Scream")
+     - Status: Battery Level & Timestamp.
+
+3. **Discovery Phase**:
+   - **MeshManager** scans the vicinity using **Wi-Fi Direct**.
+   - It builds a list of "Nearby Peers" (other phones with the app).
+
+4. **Broadcast Phase**:
+   - The app opens a **TCP Socket** to each nearby phone.
+   - It sends the JSON SOS message instantly.
+
+5. **Relay (Hopping) Phase**:
+   - **Phone B** receives the message from **Phone A**.
+   - It checks the **Hop Count**. If it has bounced less than **10 times (MAX_HOPS)**:
+     - It increments the hop count.
+     - It looks for NEW peers that Phone A couldn't reach.
+     - It **re-broadcasts** the message to them.
+
+6. **Alert Phase**:
+   - When a **Rescuer's phone** receives the packet, it triggers a loud alarm.
+   - The UI shows the victim's location on a map or compass to guide help.
