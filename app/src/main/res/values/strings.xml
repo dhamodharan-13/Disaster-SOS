@@ -1,41 +1,49 @@
-<!--
-  strings.xml — ALL USER-FACING TEXT IN ONE PLACE
-  ================================================
-  WHY: If you ever want to translate the app to Tamil, Hindi, etc.,
-  you just create a new strings.xml for that language. The code stays the same.
--->
 <resources>
     <string name="app_name">Disaster SOS</string>
 
-    <!-- Dashboard Status Messages -->
-    <string name="status_listening">🎤 Listening for distress signals…</string>
-    <string name="status_alert_detected">🚨 DISTRESS DETECTED!</string>
-    <string name="status_idle">⏸ System Idle — Tap to Activate</string>
-    <string name="status_connecting">📡 Searching for nearby devices…</string>
+    <!-- Dashboard Status -->
+    <string name="status_listening">Listening for distress signals</string>
+    <string name="status_alert_detected">DISTRESS DETECTED</string>
+    <string name="status_idle">System Idle</string>
+    <string name="status_connecting">Searching for nearby devices</string>
+    <string name="status_ready">Ready to locate victims</string>
+    <string name="status_scanning">Scanning for victims…</string>
+    <string name="status_sos_sent">SOS SENT</string>
 
-    <!-- SOS Button -->
-    <string name="sos_button_text">SEND SOS</string>
+    <!-- Buttons -->
+    <string name="sos_button_text">FIND HELP</string>
     <string name="sos_button_description">Manual emergency SOS button</string>
+    <string name="btn_start_listening">Start Listening</string>
+    <string name="btn_stop_listening">Stop Listening</string>
+    <string name="btn_find_victims">Find Nearby Victims</string>
+
+    <!-- Roles -->
+    <string name="role_rescuer">RESCUER</string>
+    <string name="role_victim">VICTIM</string>
 
     <!-- Mesh Network -->
-    <string name="peers_connected">%d devices connected</string>
-    <string name="peers_none">No nearby devices found</string>
-    <string name="mesh_active">Mesh Network Active</string>
-    <string name="mesh_inactive">Mesh Network Inactive</string>
+    <string name="peers_connected">%d device(s) connected</string>
+    <string name="peers_none">No nearby devices</string>
+    <string name="mesh_active">Mesh Active</string>
+    <string name="mesh_inactive">Mesh Inactive</string>
 
     <!-- Alert Log -->
     <string name="alert_log_title">Alert Log</string>
-    <string name="alert_log_empty">No alerts received yet</string>
+    <string name="alert_log_empty">No alerts received</string>
     <string name="alert_received_from">SOS from Node %s</string>
     <string name="alert_confidence">Confidence: %d%%</string>
 
     <!-- Permissions -->
-    <string name="permission_rationale_mic">Microphone access is needed to detect distress sounds automatically.</string>
-    <string name="permission_rationale_location">Location access is needed to attach GPS coordinates to SOS alerts.</string>
-    <string name="permission_rationale_wifi">Wi-Fi access is needed to form the offline mesh network with nearby phones.</string>
+    <string name="permission_rationale_mic">Microphone access is needed to detect distress sounds.</string>
+    <string name="permission_rationale_location">Location access is needed to attach GPS to SOS alerts.</string>
+    <string name="permission_rationale_wifi">Wi-Fi access is needed for the offline mesh network.</string>
 
     <!-- General -->
     <string name="battery_level">Battery: %d%%</string>
-    <string name="gps_coordinates">📍 %1$.4f, %2$.4f</string>
+    <string name="gps_coordinates">%1$.4f, %2$.4f</string>
     <string name="timestamp_format">HH:mm:ss</string>
+    <string name="gps_label">GPS Location</string>
+    <string name="confidence_label">AI Confidence: --</string>
+    <string name="discovered_victims">Discovered Victims</string>
+    <string name="empty_victim_list">No victims discovered yet. Tap \'Find Nearby Victims\' to scan.</string>
 </resources>

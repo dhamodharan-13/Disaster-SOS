@@ -1,123 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  ============================================================================
-   AndroidManifest.xml — THE APP'S PASSPORT
-  ============================================================================
-
-   WHY THIS FILE EXISTS:
-   Every Android app MUST have this file. It tells the Android operating system:
-     1. What PERMISSIONS does this app need? (Microphone, GPS, Wi-Fi)
-     2. What SCREENS (Activities) does this app have?
-     3. What BACKGROUND SERVICES does this app run?
-
-   IMPORTANCE FOR OUR DISASTER APP:
-   We need some very specific permissions that most apps don't need:
-     - RECORD_AUDIO → To listen for distress sounds (TinyML input)
-     - ACCESS_FINE_LOCATION → To get GPS coordinates for SOS packets
-     - NEARBY_WIFI_DEVICES → To discover other phones for the mesh
-     - ACCESS_WIFI_STATE → To use Wi-Fi Direct without a router
-     - FOREGROUND_SERVICE → To keep listening even when screen is off
-
-   Without these permissions declared here, Android will BLOCK our app
-   from accessing the microphone, GPS, and Wi-Fi hardware.
-  ============================================================================
--->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ================================================================== -->
-    <!--  PERMISSIONS — What hardware/features our app needs access to       -->
-    <!-- ================================================================== -->
-
-    <!--
-      RECORD_AUDIO — Access to the phone's microphone.
-      WHY: The TinyML model needs to listen to ambient audio to detect
-      screams and SOS tapping patterns. Without this, the "Smart Listener"
-      cannot function at all.
-    -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-    <!--
-      ACCESS_FINE_LOCATION — High-precision GPS coordinates.
-      WHY: Every SOS packet includes the victim's exact GPS location.
-      GPS works via satellites, NOT the internet, so it works offline.
-      "Fine" means accuracy within ~3 meters (vs "Coarse" = ~1 km).
-    -->
+    <!--  PERMISSIONS  -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!--
-      Wi-Fi Permissions — For the offline mesh network.
-      WHY: Wi-Fi Direct (phone-to-phone) lets us discover nearby devices
-      and send data WITHOUT a router or internet connection.
-    -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
-        android:usesPermissionFlags="neverForLocation"
         tools:targetApi="33" />
-
-    <!--
-      INTERNET — Wait, why?!
-      We are NOT using internet for the mesh network. But Google Play Services
-      (which we use for GPS) requires this permission to be declared even though
-      GPS itself works offline. It's a quirk of the Play Services library.
-    -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        tools:targetApi="31" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
-    <!--
-      FOREGROUND_SERVICE — Keeps our app running in the background.
-      WHY: During a disaster, the victim might lock their phone or put it
-      in their pocket. The app MUST keep listening for distress sounds and
-      relaying mesh messages even when the screen is off.
-    -->
+    <!--  FOREGROUND SERVICE (FOR MESH & LOCATION)  -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
-    <!--
-      WAKE_LOCK — Prevents the CPU from sleeping.
-      WHY: Even with a foreground service, Android might put the CPU to
-      sleep to save battery. A wake lock says "keep the processor running,
-      people's lives depend on it."
-    -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- ================================================================== -->
-    <!--  APPLICATION — Our app's components                                 -->
-    <!-- ================================================================== -->
     <application
         android:allowBackup="true"
-        android:icon="@android:drawable/ic_dialog_alert"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@style/Theme.DisasterSOS"
         android:supportsRtl="true"
         tools:targetApi="34">
 
-        <!--
-          MainActivity — The FIRST screen the user sees when they open the app.
-          The intent-filter with MAIN + LAUNCHER tells Android:
-          "This is the entry point. Show it in the app launcher."
-        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:screenOrientation="portrait">
+            android:screenOrientation="unspecified" />
+
+        <activity
+            android:name="com.innosence.disastersos.ui.RoleSelectionActivity"
+            android:exported="true"
+            android:screenOrientation="unspecified">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!--
-          MeshService — The background service for the mesh network.
-          It keeps running even when the app is minimized, ensuring
-          SOS packets continue to be relayed between phones.
-          foregroundServiceType="microphone" tells Android we need
-          the mic in the background (required since Android 14).
-        -->
+        <activity
+            android:name=".CompassActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+
+        <!--  Updated Service Types for Mesh Networking  -->
         <service
             android:name=".service.MeshService"
-            android:foregroundServiceType="microphone"
+            android:foregroundServiceType="connectedDevice|location"
             android:exported="false" />
 
     </application>

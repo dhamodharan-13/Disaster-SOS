@@ -103,7 +103,7 @@ class MessageRouter {
      * ────────────────────────────────────────────────────────────────
      *  Cache overflow aagaama, oldest entries clean up panrom.
      */
-    private fun markAsSeen(messageKey: String) {
+    fun markAsSeen(messageKey: String) {
         seenMessages.add(messageKey)
 
         // Cache size limit exceed aana, oldest entries remove

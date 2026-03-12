@@ -1,148 +1,137 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  ============================================================================
-   activity_main.xml — THE MAIN DASHBOARD SCREEN
-  ============================================================================
-
-   WHY THIS FILE EXISTS:
-   This XML file defines WHAT the user sees on the phone screen.
-   Think of it as the blueprint of a room — it says where the walls,
-   windows, and furniture go. The Kotlin code (MainActivity.kt) then
-   makes these elements interactive (like adding electricity to the room).
-
-   LAYOUT STRUCTURE (top to bottom):
-   ┌─────────────────────────────────────┐
-   │  🔴 STATUS INDICATOR                │  ← "Listening..." / "ALERT!"
-   ├─────────────────────────────────────┤
-   │  📡 MESH STATUS CARD                │  ← Peer count, network status
-   ├─────────────────────────────────────┤
-   │  🆘 SOS BUTTON                      │  ← Big red manual panic button
-   ├─────────────────────────────────────┤
-   │  📋 ALERT LOG                       │  ← Scrollable list of received SOSes
-   └─────────────────────────────────────┘
-
-   WHY ConstraintLayout:
-   It's the most efficient layout for Android. Instead of nesting layouts
-   inside layouts (which slows down rendering), ConstraintLayout lets us
-   position every element relative to each other in a FLAT structure.
-   Flat = faster rendering = less battery usage.
-  ============================================================================
--->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipeRefreshLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/background_primary"
-    android:fillViewport="true">
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/background_primary"
+        android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:orientation="vertical">
 
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <!--  APP HEADER                                                 -->
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <LinearLayout
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  HERO HEADER — Dark gradient with immersive feel     -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@drawable/bg_header_gradient"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="48dp"
+            android:paddingBottom="56dp">
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tvHeaderTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/text_primary"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.02" />
+
+            <!-- Subtitle -->
+            <TextView
+                android:id="@+id/tvHeaderSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvHeaderTitle"
+                android:layout_marginTop="6dp"
+                android:text="Stay safe, we've got you covered"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                android:letterSpacing="0.01" />
+
+            <!-- Role Badge -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvRoleLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_role_badge_victim"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="6dp"
+                    android:text="@string/role_victim"
+                    android:textColor="@color/warning_amber"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.08" />
+            </LinearLayout>
+
+        </RelativeLayout>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  HARDWARE WARNING BANNER (Hidden by default)         -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:id="@+id/llHardwareWarning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginTop="-24dp"
+            android:layout_marginBottom="36dp"
+            android:background="@drawable/bg_sos_button"
+            android:backgroundTint="@color/emergency_red_glow"
+            android:elevation="10dp"
             android:orientation="horizontal"
+            android:padding="16dp"
             android:gravity="center_vertical"
-            android:layout_marginBottom="24dp">
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_dialog_alert"
+                app:tint="@color/emergency_red"
+                android:layout_marginEnd="12dp" />
 
             <TextView
+                android:id="@+id/tvHardwareWarningText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Disaster SOS"
-                android:textColor="@color/text_primary"
-                android:textSize="28sp"
+                android:text="Turn on Bluetooth and Wi-Fi to use the Mesh Network offline."
+                android:textColor="@color/emergency_red"
+                android:textSize="13sp"
                 android:textStyle="bold" />
-
-            <!-- Battery indicator — shows how much power is left -->
+                
             <TextView
-                android:id="@+id/tvBatteryLevel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🔋 100%"
-                android:textColor="@color/safe_green"
-                android:textSize="14sp" />
+                android:text="FIX"
+                android:textColor="@color/emergency_red"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingStart="8dp" />
         </LinearLayout>
 
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <!--  STATUS INDICATOR CARD                                      -->
-        <!--  ──────────────────────────────────────────────────────────  -->
-        <!--  This is the MOST IMPORTANT visual element on the screen.   -->
-        <!--  It tells the user instantly: "Am I being protected?"       -->
-        <!--  The background color changes:                              -->
-        <!--    🟢 Green = Listening, everything is OK                   -->
-        <!--    🔴 Red = Distress detected, SOS is being sent            -->
-        <!--    🟡 Amber = Connecting to mesh, please wait               -->
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <androidx.cardview.widget.CardView
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  GLASS STATUS CARD — Floating frosted panel          -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <FrameLayout
             android:id="@+id/cardStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardBackgroundColor="@color/background_card"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="8dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="24dp"
-                android:gravity="center">
-
-                <!-- Status icon — pulses when active -->
-                <TextView
-                    android:id="@+id/tvStatusIcon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🟢"
-                    android:textSize="48sp"
-                    android:layout_marginBottom="12dp" />
-
-                <!-- Main status text -->
-                <TextView
-                    android:id="@+id/tvStatus"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/status_listening"
-                    android:textColor="@color/safe_green"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:gravity="center" />
-
-                <!-- AI Confidence display -->
-                <TextView
-                    android:id="@+id/tvConfidence"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AI Confidence: --"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
-                    android:layout_marginTop="8dp" />
-
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <!--  MESH NETWORK STATUS CARD                                   -->
-        <!--  Shows how many nearby phones are connected to the mesh.    -->
-        <!--  If peers = 0, the SOS has nowhere to go.                   -->
-        <!--  If peers > 0, the bucket brigade is ready!                 -->
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cardMesh"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardBackgroundColor="@color/background_card"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="4dp">
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginTop="-32dp"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/bg_glass_card"
+            android:elevation="8dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -151,13 +140,88 @@
                 android:padding="20dp"
                 android:gravity="center_vertical">
 
-                <!-- Mesh icon -->
+                <!-- Status dot -->
+                <View
+                    android:id="@+id/viewStatusDot"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/bg_status_dot" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/status_idle"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvConfidence"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/confidence_label"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:layout_marginTop="3dp" />
+                </LinearLayout>
+
+                <!-- Battery -->
                 <TextView
+                    android:id="@+id/tvBatteryLevel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📡"
-                    android:textSize="32sp"
-                    android:layout_marginEnd="16dp" />
+                    android:text="100%"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  INFO ROWS — Mesh Network + GPS Location             -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp">
+
+            <!-- ── Mesh Network Row ── -->
+            <LinearLayout
+                android:id="@+id/cardMesh"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingVertical="16dp"
+                android:background="?attr/selectableItemBackground">
+
+                <!-- Blue circle icon -->
+                <FrameLayout
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:layout_marginEnd="16dp">
+                    <View
+                        android:layout_width="46dp"
+                        android:layout_height="46dp"
+                        android:background="@drawable/bg_icon_circle_blue" />
+                    <TextView
+                        android:id="@+id/tvPeerBadge"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:text="0"
+                        android:textColor="@color/info_blue"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </FrameLayout>
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -171,7 +235,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/mesh_inactive"
                         android:textColor="@color/text_primary"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -181,62 +245,64 @@
                         android:text="@string/peers_none"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp"
-                        android:layout_marginTop="4dp" />
+                        android:layout_marginTop="3dp" />
                 </LinearLayout>
 
-                <!-- Peer count badge -->
+                <!-- Arrow -->
                 <TextView
-                    android:id="@+id/tvPeerBadge"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="@color/info_blue_dim"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/info_blue"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="→"
+                    android:textColor="@color/text_hint"
+                    android:textSize="18sp" />
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
 
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <!--  GPS LOCATION CARD                                          -->
-        <!--  Shows the phone's current GPS coordinates.                 -->
-        <!--  Reminds users that GPS works WITHOUT internet.             -->
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            app:cardBackgroundColor="@color/background_card"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="4dp">
+            <!-- Thin divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="62dp"
+                android:background="@color/divider_color" />
 
+            <!-- ── GPS Location Row ── -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="20dp"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:paddingVertical="16dp"
+                android:background="?attr/selectableItemBackground">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="📍"
-                    android:textSize="28sp"
-                    android:layout_marginEnd="16dp" />
+                <!-- Green circle icon -->
+                <FrameLayout
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:layout_marginEnd="16dp">
+                    <View
+                        android:layout_width="46dp"
+                        android:layout_height="46dp"
+                        android:background="@drawable/bg_icon_circle_green" />
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:src="@android:drawable/ic_menu_mylocation"
+                        app:tint="@color/safe_green"
+                        android:contentDescription="GPS" />
+                </FrameLayout>
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="GPS Location"
+                        android:text="@string/gps_label"
                         android:textColor="@color/text_primary"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -246,96 +312,266 @@
                         android:text="Acquiring location…"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp"
-                        android:layout_marginTop="4dp" />
+                        android:layout_marginTop="3dp" />
                 </LinearLayout>
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="→"
+                    android:textColor="@color/text_hint"
+                    android:textSize="18sp" />
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
 
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <!--  THE SOS BUTTON                                             -->
-        <!--  ──────────────────────────────────────────────────────────  -->
-        <!--  The centerpiece of the app. A big, unmistakable red button -->
-        <!--  that a victim can press even with shaking hands, in the    -->
-        <!--  dark, while injured. Design principles:                    -->
-        <!--    - LARGE (easy to find by touch)                          -->
-        <!--    - RED (universally understood as "emergency")            -->
-        <!--    - HIGH CONTRAST text (readable in any lighting)          -->
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSOS"
-            android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:layout_marginBottom="24dp"
-            android:text="@string/sos_button_text"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@color/colorOnPrimary"
-            app:backgroundTint="@color/emergency_red"
-            app:cornerRadius="16dp"
-            app:rippleColor="@color/emergency_red_glow"
-            app:icon="@android:drawable/ic_dialog_alert"
-            app:iconGravity="textStart"
-            app:iconTint="@color/colorOnPrimary" />
+        </LinearLayout>
 
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <!--  ACTIVATE / DEACTIVATE LISTENING BUTTON                     -->
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnToggleListening"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginBottom="24dp"
-            android:text="🎤 Start Listening"
-            android:textSize="16sp"
-            android:textColor="@color/safe_green"
-            app:strokeColor="@color/safe_green"
-            app:strokeWidth="2dp"
-            app:cornerRadius="16dp" />
-
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <!--  ALERT LOG SECTION                                          -->
-        <!--  ──────────────────────────────────────────────────────────  -->
-        <!--  A scrollable list showing ALL SOS alerts received from     -->
-        <!--  other phones in the mesh network. Each entry shows:        -->
-        <!--    - Who sent it (Node ID)                                  -->
-        <!--    - Their GPS coordinates                                  -->
-        <!--    - The AI's confidence level                              -->
-        <!--    - Timestamp                                              -->
-        <!--                                                             -->
-        <!--  We use RecyclerView (not ListView) because:                -->
-        <!--    - It "recycles" off-screen items to save memory          -->
-        <!--    - Critical when battery/memory must be conserved         -->
-        <!--    - Can handle thousands of alerts without lag             -->
-        <!-- ════════════════════════════════════════════════════════════ -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/alert_log_title"
-            android:textColor="@color/text_primary"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp" />
-
-        <!-- Empty state message — shown when no alerts have been received -->
-        <TextView
-            android:id="@+id/tvEmptyLog"
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  SECTION: Emergency Actions — Glass Action Cards     -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/alert_log_empty"
-            android:textColor="@color/text_hint"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:padding="32dp" />
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginTop="16dp">
 
-        <!-- The actual scrollable list of alert cards -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvAlertLog"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Emergency Actions"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.02"
+                android:layout_marginBottom="14dp" />
+
+            <!-- Action Cards -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_sos_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSOS"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="18dp"
+                    android:text="@string/sos_button_text"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/emergency_red"
+                    android:letterSpacing="0.08"
+                    app:backgroundTint="@android:color/transparent"
+                    app:cornerRadius="18dp"
+                    app:rippleColor="@color/emergency_red_glow"
+                    app:icon="@android:drawable/ic_dialog_info"
+                    app:iconTint="@color/emergency_red"
+                    app:iconGravity="top"
+                    app:iconPadding="8dp"
+                    app:elevation="0dp" />
+            </FrameLayout>
+
+            <!-- Find Victims Card (Rescuer — full width glass) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFindVictims"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="18dp"
+                android:layout_marginBottom="10dp"
+                android:text="@string/btn_find_victims"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/info_blue"
+                android:letterSpacing="0.02"
+                app:backgroundTint="@color/action_blue_fill"
+                app:cornerRadius="18dp"
+                app:rippleColor="@color/info_blue_dim"
+                app:icon="@android:drawable/ic_menu_search"
+                app:iconTint="@color/info_blue"
+                app:iconGravity="top"
+                app:iconPadding="8dp"
+                app:elevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/action_blue_stroke"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  SECTION: Discovered Victims (Rescuer Only)          -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
-            android:visibility="gone" />
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/tvVictimListTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/discovered_victims"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvVictimListArrow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="→"
+                    android:textColor="@color/text_hint"
+                    android:textSize="18sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvEmptyVictimList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/empty_victim_list"
+                android:textColor="@color/text_hint"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvVictimList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  SECTION: Connected Devices (Rescuer Only)           -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:id="@+id/llConnectedDevicesSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginTop="12dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/tvConnectedDevicesTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Connected Devices"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="→"
+                    android:textColor="@color/text_hint"
+                    android:textSize="18sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvEmptyConnectedDevices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No devices connected yet"
+                android:textColor="@color/text_hint"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvConnectedDevices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!--  SECTION: Alert Log                                  -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginTop="20dp"
+            android:paddingBottom="32dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="14dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/alert_log_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="→"
+                    android:textColor="@color/text_hint"
+                    android:textSize="18sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvEmptyLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/alert_log_empty"
+                android:textColor="@color/text_hint"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:background="@drawable/bg_glass_card"
+                android:padding="36dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvAlertLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
     </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

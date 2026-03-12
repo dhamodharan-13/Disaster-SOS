@@ -1,71 +1,76 @@
-<!--
-  ============================================================================
-   colors.xml — THE APP'S COLOR PALETTE
-  ============================================================================
-
-   WHY THIS FILE EXISTS:
-   Instead of writing color codes (#FF0000) directly in our layouts, we
-   define named colors here. This way, if we want to change the emergency
-   red shade, we change it in ONE place and it updates everywhere.
-
-   OUR DESIGN PHILOSOPHY:
-   This is a disaster/emergency app. The color scheme must:
-     - Use DARK backgrounds (saves battery on OLED screens — critical!)
-     - Use HIGH CONTRAST colors (readable in bright sunlight or dark rubble)
-     - Use RED for danger/SOS and GREEN for safe/connected
-     - Feel serious and trustworthy, not playful
-  ============================================================================
--->
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!--  PRIMARY COLORS — The app's main identity                      -->
-    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════ -->
+    <!--  GLASSMORPHISM DARK THEME — Premium Frost  -->
+    <!-- ═══════════════════════════════════════════ -->
 
-    <!-- Deep dark background — nearly black, saves battery on OLED screens -->
-    <color name="background_primary">#FF0D1117</color>
-    <!-- Slightly lighter dark — for cards, panels, elevated surfaces -->
-    <color name="background_card">#FF161B22</color>
-    <!-- Even lighter — for input fields and secondary surfaces -->
-    <color name="background_surface">#FF21262D</color>
+    <!-- Core Backgrounds -->
+    <color name="background_primary">#FF0A0A0F</color>
+    <color name="background_card">#1AFFFFFF</color>
+    <color name="background_surface">#0DFFFFFF</color>
 
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!--  STATUS COLORS — Communicate urgency at a glance               -->
-    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- Header / Hero Gradient -->
+    <color name="header_start">#FF12121F</color>
+    <color name="header_end">#000A0A0F</color>
+    <color name="header_accent">#FFFF5252</color>
 
-    <!-- Emergency Red — SOS alerts, danger indicators -->
-    <color name="emergency_red">#FFFF4444</color>
-    <!-- Pulsing red glow — for the SOS button's animated halo -->
-    <color name="emergency_red_glow">#66FF4444</color>
+    <!-- Glass Layers -->
+    <color name="glass_fill">#1AFFFFFF</color>
+    <color name="glass_fill_strong">#26FFFFFF</color>
+    <color name="glass_stroke">#33FFFFFF</color>
+    <color name="glass_stroke_bright">#66FFFFFF</color>
+    <color name="card_shadow">#40000000</color>
 
-    <!-- Safe Green — connected status, all-clear indicators -->
-    <color name="safe_green">#FF00C853</color>
-    <color name="safe_green_dim">#6600C853</color>
+    <!-- Role Specific Accents -->
+    <color name="victim_glow">#33FF5252</color>
+    <color name="victim_accent">#FFFF5252</color>
+    <color name="rescuer_glow">#3366BB6A</color>
+    <color name="rescuer_accent">#FF66BB6A</color>
 
-    <!-- Warning Amber — moderate alerts, connecting status -->
-    <color name="warning_amber">#FFFFAB00</color>
+    <!-- Status Colors -->
+    <color name="emergency_red">#FFFF5252</color>
+    <color name="emergency_red_glow">#55FF5252</color>
+    <color name="emergency_red_dim">#28FF5252</color>
+    <color name="safe_green">#FF66BB6A</color>
+    <color name="safe_green_dim">#2866BB6A</color>
+    <color name="safe_green_light">#1A66BB6A</color>
+    <color name="warning_amber">#FFFFAB40</color>
+    <color name="warning_amber_dim">#28FFAB40</color>
+    <color name="info_blue">#FF42A5F5</color>
+    <color name="info_blue_dim">#2842A5F5</color>
+    <color name="info_blue_light">#1A42A5F5</color>
 
-    <!-- Info Blue — neutral information, peer count -->
-    <color name="info_blue">#FF448AFF</color>
-    <color name="info_blue_dim">#66448AFF</color>
+    <!-- Text Colors -->
+    <color name="text_primary">#FFF0F0F5</color>
+    <color name="text_secondary">#FF8890A0</color>
+    <color name="text_hint">#FF505868</color>
 
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!--  TEXT COLORS                                                    -->
-    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- Utility -->
+    <color name="divider_color">#1AFFFFFF</color>
+    <color name="card_border">#26FFFFFF</color>
 
-    <!-- Primary text — bright white for maximum readability -->
-    <color name="text_primary">#FFF0F6FC</color>
-    <!-- Secondary text — dimmed for less important info -->
-    <color name="text_secondary">#FF8B949E</color>
-    <!-- Disabled/hint text -->
-    <color name="text_hint">#FF484F58</color>
+    <!-- Icon Circle Backgrounds (translucent on dark) -->
+    <color name="icon_bg_red">#28FF5252</color>
+    <color name="icon_bg_green">#2866BB6A</color>
+    <color name="icon_bg_blue">#2842A5F5</color>
+    <color name="icon_bg_amber">#28FFAB40</color>
 
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!--  MATERIAL THEME COLORS (required by Material Design library)    -->
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <color name="colorPrimary">#FFFF4444</color>
-    <color name="colorPrimaryVariant">#FFCC0000</color>
+    <!-- SOS Button Glow -->
+    <color name="sos_glow_outer">#44FF5252</color>
+    <color name="sos_fill">#33FF5252</color>
+    <color name="sos_stroke">#99FF5252</color>
+
+    <!-- Action Card Fills -->
+    <color name="action_green_fill">#1A66BB6A</color>
+    <color name="action_green_stroke">#4D66BB6A</color>
+    <color name="action_blue_fill">#1A42A5F5</color>
+    <color name="action_blue_stroke">#4D42A5F5</color>
+
+    <!-- Material Theme Colors -->
+    <color name="colorPrimary">#FFFF5252</color>
+    <color name="colorPrimaryVariant">#FFD32F2F</color>
     <color name="colorOnPrimary">#FFFFFFFF</color>
-    <color name="colorSecondary">#FF448AFF</color>
-    <color name="colorSecondaryVariant">#FF1565C0</color>
-    <color name="colorOnSecondary">#FFFFFFFF</color>
+    <color name="colorSecondary">#FF66BB6A</color>
+    <color name="colorSecondaryVariant">#FF388E3C</color>
+    <color name="colorOnSecondary">#FF000000</color>
 </resources>

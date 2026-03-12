@@ -1,73 +1,68 @@
 package com.innosence.disastersos.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
+import android.Manifest
+import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.os.IBinder
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.location.Location
+import android.os.*
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.innosence.disastersos.MainActivity
-import com.innosence.disastersos.R
-
-/*
- * ============================================================================
- *  MeshService.kt — BACKGROUND GUARDIAN
- * ============================================================================
- *
- *  TANGLISH EXPLANATION:
- *  =====================
- *  Normally Android app ah minimize pannaa (home button press), app
- *  "background" ku pogum. Android battery save panna, background apps
- *  ah kill pannidum. Aanaa namma disaster app la idhu DANGEROUS!
- *
- *  Example scenario: Victim phone pocket la vechirukkaan. Screen off.
- *  Ippo vera phone irundhu SOS message varadhu. Normal app anaa,
- *  Android already kill pannirukkum — message miss aagum! 😱
- *
- *  SOLUTION: Foreground Service!
- *  ─────────────────────────────
- *  "Foreground Service" = Android ku solrom: "Idhu important service da,
- *  kill pannaadhey!" Android accept pannum, but oru condition:
- *  notification bar la oru permanent notification kaattanum.
- *  (WhatsApp call la "Ongoing call" nu notification varum la? Same concept.)
- *
- *  Adhu namma ku ok — user ku "Disaster SOS is active" nu status
- *  bar la theriyum. Reassuring ah irukum.
- *
- *  WHAT THIS SERVICE DOES:
- *  1. App background la irukumbothum mesh network alive ah vachirukum
- *  2. Incoming SOS messages continuously listen pannum
- *  3. Notification bar la "SOS Active" nu kaattum
- *  4. Android kill pannaa kuda, automatically restart aagum
- * ============================================================================
- */
+import com.innosence.disastersos.data.PreferencesHelper
+import com.innosence.disastersos.data.SOSPacket
+import com.innosence.disastersos.mesh.BluetoothMeshManager
+import com.innosence.disastersos.mesh.MeshManager
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 
 class MeshService : Service() {
 
+    private val binder = MeshBinder()
+    private lateinit var prefsHelper: PreferencesHelper
+    private lateinit var nodeId: String
+    private var currentRole: String = PreferencesHelper.ROLE_VICTIM
+
+    private var meshManager: MeshManager? = null
+    private var bluetoothMeshManager: BluetoothMeshManager? = null
+    private val knowledgeBase = ConcurrentHashMap<String, SOSPacket>()
+
+    private var isGossipActive = false
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val handler = Handler(Looper.getMainLooper())
+    private var listener: MeshServiceListener? = null
+
+    private var lastBroadcastPacket: SOSPacket? = null
+    private var currentGossipInterval = GOSSIP_INTERVAL_NORMAL
+
+    interface MeshServiceListener {
+        fun onKnowledgeBaseUpdated(data: List<SOSPacket>)
+        fun onPeerCountChanged(count: Int)
+    }
+
+    inner class MeshBinder : Binder() {
+        fun getService(): MeshService = this@MeshService
+    }
+
+    override fun onBind(intent: Intent?): IBinder = binder
+
     companion object {
         private const val TAG = "MeshService"
-
-        /*
-         * NOTIFICATION_CHANNEL_ID — Android 8.0+ la notifications ku
-         * "channel" create pannanum. Idhu user ku control kudukum:
-         * "Idha mute pannanumaa?" nu decide panna. Namma SOS channel
-         * ah HIGH importance kudukurom — miss aagakkoodaadhu!
-         */
         private const val NOTIFICATION_CHANNEL_ID = "disaster_sos_mesh"
         private const val NOTIFICATION_ID = 1
 
-        /**
-         * Service ah START panna helper function.
-         *
-         * TANGLISH: Static function madhiri — object create pannama
-         * MeshService.start(context) nu call pannalam.
-         * startForegroundService() use panrom (Android 8.0+ requirement).
-         */
+        private const val GOSSIP_INTERVAL_NORMAL = 15_000L
+        private const val GOSSIP_INTERVAL_URGENT = 3_000L
+        private const val GOSSIP_INTERVAL_CRITICAL = 5_000L
+        
+        private const val GPS_CHANGE_THRESHOLD = 0.0001
+        private const val BATTERY_CHANGE_THRESHOLD = 2
+
         fun start(context: Context) {
             val intent = Intent(context, MeshService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -76,130 +71,210 @@ class MeshService : Service() {
                 context.startService(intent)
             }
         }
-
-        /**
-         * Service ah STOP panna helper function.
-         */
-        fun stop(context: Context) {
-            val intent = Intent(context, MeshService::class.java)
-            context.stopService(intent)
-        }
     }
 
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  onCreate() — Service first time create aanaa run aagum
-     * ────────────────────────────────────────────────────────────────
-     *  TANGLISH: Service "birth" — notification channel create panrom.
-     */
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        Log.d(TAG, "MeshService created ✅")
+        prefsHelper = PreferencesHelper(this)
+        nodeId = prefsHelper.getNodeId()
+        currentRole = prefsHelper.getUserRole()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        
+        if (currentRole == PreferencesHelper.ROLE_RESCUER) {
+            isGossipActive = true
+        }
+
+        initializeNetworking()
+        startGossipLoop()
     }
 
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  onStartCommand() — Service START command vandhaa run aagum
-     * ────────────────────────────────────────────────────────────────
-     *  
-     *  TANGLISH:
-     *  Idhu la 2 mukkiyamana vishayam nadakkum:
-     *  1. startForeground() — Android ku solrom "kill pannaadhey!"
-     *  2. Return START_STICKY — "Android crash pannaa, restart pannu!"
-     *
-     *  START_STICKY meaning:
-     *  Android sometimes RAM kammi na background services kill pannum.
-     *  START_STICKY return pannaa, Android memory free aana udan
-     *  namma service ah automatically restart pannum. Disaster app ku
-     *  idhu CRITICAL — eppovume running irukanum!
-     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Notification create panni foreground service ah start panrom
         val notification = createNotification()
-        startForeground(NOTIFICATION_ID, notification)
-
-        Log.d(TAG, "🛡️ MeshService started in foreground — protected from kill!")
-
-        // START_STICKY = "Kill pannaa restart pannu" 
+        
+        // Android 14 (SDK 34) fix: Specify foreground service types in startForeground
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or 
+                       ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            startForeground(NOTIFICATION_ID, notification, type)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+        
         return START_STICKY
     }
 
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  createNotificationChannel() — Notification tube create panrom
-     * ────────────────────────────────────────────────────────────────
-     *
-     *  TANGLISH:
-     *  Android 8.0 la irundhu, notification anuppa "channel" create
-     *  pannanum — TV channels madhiri. User specific channel ah
-     *  mute/unmute panna mudiyum.
-     *
-     *  Namma channel: "Mesh Network Status" — HIGH importance
-     *  kudukurom so user miss pannamaataan.
-     */
+    private fun initializeNetworking() {
+        meshManager = MeshManager(
+            context = this,
+            onSOSReceived = { packet -> handleIncomingGossip(packet) },
+            onPeersChanged = { count -> listener?.onPeerCountChanged(count) }
+        )
+
+        bluetoothMeshManager = BluetoothMeshManager(
+            context = this,
+            nodeId = nodeId,
+            onPacketReceived = { packet -> handleIncomingGossip(packet) },
+            onPeerDiscovered = { _, rssi -> 
+                updateAdaptiveInterval(rssi)
+                val count = bluetoothMeshManager?.getConnectedPeerCount() ?: 0
+                listener?.onPeerCountChanged(count)
+            }
+        )
+        bluetoothMeshManager?.initialize()
+    }
+
+    private fun handleIncomingGossip(packet: SOSPacket) {
+        if (packet.packetType == SOSPacket.TYPE_RESCUE_START && !isGossipActive) {
+            isGossipActive = true
+            broadcastOwnStatus()
+        }
+
+        val existing = knowledgeBase[packet.nodeId]
+        if (existing != null && existing.sequenceNumber >= packet.sequenceNumber) return
+
+        knowledgeBase[packet.nodeId] = packet
+        listener?.onKnowledgeBaseUpdated(knowledgeBase.values.toList())
+
+        if (!packet.hasReachedMaxHops()) {
+            val relayPacket = packet.incrementHop()
+            if (packet.needsPriority()) {
+                Thread {
+                    meshManager?.broadcastSOS(relayPacket)
+                    bluetoothMeshManager?.broadcastPacket(relayPacket)
+                }.start()
+            } else {
+                meshManager?.broadcastSOS(relayPacket)
+                bluetoothMeshManager?.broadcastPacket(relayPacket)
+            }
+        }
+    }
+
+    fun startRescueOperation() {
+        if (currentRole != PreferencesHelper.ROLE_RESCUER) return
+        val startPacket = SOSPacket(
+            nodeId = nodeId,
+            latitude = 0.0,
+            longitude = 0.0,
+            batteryLevel = getBatteryLevel(),
+            timestamp = System.currentTimeMillis(),
+            packetType = SOSPacket.TYPE_RESCUE_START,
+            hopCount = 0
+        )
+        meshManager?.broadcastSOS(startPacket)
+        bluetoothMeshManager?.broadcastPacket(startPacket)
+    }
+
+    private fun startGossipLoop() {
+        handler.post(object : Runnable {
+            override fun run() {
+                if (isGossipActive) {
+                    broadcastOwnStatus()
+                }
+                handler.postDelayed(this, currentGossipInterval)
+            }
+        })
+    }
+
+    private fun updateAdaptiveInterval(rssi: Int) {
+        if (currentRole == PreferencesHelper.ROLE_VICTIM) {
+            currentGossipInterval = if (rssi > -65) {
+                GOSSIP_INTERVAL_URGENT
+            } else if (getBatteryLevel() < SOSPacket.CRITICAL_BATTERY_THRESHOLD) {
+                GOSSIP_INTERVAL_CRITICAL
+            } else {
+                GOSSIP_INTERVAL_NORMAL
+            }
+        }
+    }
+
+    private fun broadcastOwnStatus() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            checkDeltaAndSend(0.0, 0.0)
+            return
+        }
+
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            checkDeltaAndSend(location?.latitude ?: 0.0, location?.longitude ?: 0.0)
+        }
+    }
+
+    private fun checkDeltaAndSend(lat: Double, lon: Double) {
+        val battery = getBatteryLevel()
+        val currentPacket = SOSPacket(
+            nodeId = nodeId,
+            latitude = lat,
+            longitude = lon,
+            batteryLevel = battery,
+            timestamp = System.currentTimeMillis(),
+            packetType = SOSPacket.TYPE_VICTIM_DATA,
+            hopCount = 0,
+            isCritical = (battery < SOSPacket.CRITICAL_BATTERY_THRESHOLD)
+        )
+
+        val last = lastBroadcastPacket
+        if (last == null || 
+            abs(last.latitude - lat) > GPS_CHANGE_THRESHOLD ||
+            abs(last.longitude - lon) > GPS_CHANGE_THRESHOLD ||
+            abs(last.batteryLevel - battery) >= BATTERY_CHANGE_THRESHOLD ||
+            System.currentTimeMillis() - last.timestamp > GOSSIP_INTERVAL_NORMAL) {
+            
+            sendOwnData(currentPacket)
+            lastBroadcastPacket = currentPacket
+        }
+    }
+
+    private fun sendOwnData(packet: SOSPacket) {
+        knowledgeBase[nodeId] = packet
+        listener?.onKnowledgeBaseUpdated(knowledgeBase.values.toList())
+        meshManager?.broadcastSOS(packet)
+        bluetoothMeshManager?.broadcastPacket(packet)
+    }
+
+    private fun getBatteryLevel(): Int {
+        val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        return batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+    }
+
+    fun setListener(listener: MeshServiceListener?) {
+        this.listener = listener
+        listener?.onKnowledgeBaseUpdated(knowledgeBase.values.toList())
+    }
+
+    fun getKnowledgeBase() = knowledgeBase.values.toList()
+    fun getDiscoveredPeers() = meshManager?.getDiscoveredPeers() ?: emptyList()
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
-                "Mesh Network Status",  // User ku theriyura per
-                NotificationManager.IMPORTANCE_LOW  // LOW = no sound, just icon
-                // HIGH use pannaa every second beep aagum — annoying!
-            ).apply {
-                description = "Shows when the disaster mesh network is active"
-            }
-
+                "Mesh Network Status",
+                NotificationManager.IMPORTANCE_LOW
+            )
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
         }
     }
 
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  createNotification() — Status bar notification create panrom
-     * ────────────────────────────────────────────────────────────────
-     *
-     *  TANGLISH:
-     *  Idhu status bar la kaattum notification — "Disaster SOS Active"
-     *  Tap pannaa app open aagum. User ku confidence kudukum:
-     *  "Enna phone protect panniduchu" nu theriyum.
-     */
     private fun createNotification(): Notification {
-        // Notification tap pannaa MainActivity open aagum
         val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE  // Security requirement in Android 12+
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
         )
-
+        val status = if (currentRole == PreferencesHelper.ROLE_RESCUER) "Rescuer Active" else "Mesh Mode"
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("🛡️ Disaster SOS Active")
-            .setContentText("Mesh network is running — ready to relay SOS signals")
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)  // Placeholder icon
+            .setContentTitle("🛡️ DisasterSOS: $status")
+            .setContentText("Intelligent Mesh Relay Running")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)  // User swipe panni dismiss panna mudiyaadhu — always visible
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
             .build()
     }
 
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  onBind() — Required override, but we don't use it
-     * ────────────────────────────────────────────────────────────────
-     *  TANGLISH: "Bound service" ku use aagum, but namma "started
-     *  service" use panrom — adhunala null return panrom.
-     *  (Android requirement — implement pannama compile aagaadhu)
-     */
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  onDestroy() — Service close aana cleanup
-     * ────────────────────────────────────────────────────────────────
-     */
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "MeshService destroyed")
+        handler.removeCallbacksAndMessages(null)
+        meshManager?.cleanup()
+        bluetoothMeshManager?.cleanup()
     }
 }
