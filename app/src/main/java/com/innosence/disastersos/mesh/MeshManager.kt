@@ -12,6 +12,7 @@ import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Build
+import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
@@ -93,6 +94,9 @@ class MeshManager(
          * - 8888 easy to remember, usually not used by other apps
          */
         private const val SERVER_PORT = 8888
+
+        // How often to retry discovery (in case phones didn't find each other yet)
+        private const val DISCOVERY_RETRY_INTERVAL_MS = 15_000L  // 15 seconds
     }
 
     // Wi-Fi Direct manager — Android system service, namma control panrom
@@ -104,12 +108,18 @@ class MeshManager(
     // JSON converter — SOSPacket ↔ JSON string conversion ku
     private val gson = Gson()
 
+    // Handler for periodic re-discovery
+    private val handler = Handler(Looper.getMainLooper())
+
     // Currently discovered peers (nearby phones)
     private val discoveredPeers = mutableListOf<WifiP2pDevice>()
 
     // Server socket — listens for incoming SOS messages from other phones
     private var serverSocket: ServerSocket? = null
     private var isServerRunning = false
+
+    // Track if we're already connected to a P2P group (prevents duplicate connections)
+    private var isConnected = false
 
     /*
      * BroadcastReceiver — Android oda EVENT SYSTEM.
@@ -157,6 +167,13 @@ class MeshManager(
                         discoveredPeers.addAll(peers.deviceList)
                         Log.d(TAG, "Found ${discoveredPeers.size} nearby devices")
                         onPeersChanged(discoveredPeers.size)
+
+                        // AUTO-CONNECT: If we found peers, connect to the first available one!
+                        if (discoveredPeers.isNotEmpty()) {
+                            val firstPeer = discoveredPeers[0]
+                            Log.d(TAG, "🔗 Auto-connecting to: ${firstPeer.deviceName}")
+                            connectToPeer(firstPeer)
+                        }
                     }
                 }
 
@@ -164,16 +181,16 @@ class MeshManager(
                     /*
                      * Connection status change aayirukku!
                      * Successfully connect aana, data transfer start panrom.
-                     *
-                     * requestConnectionInfo() call panni paakkurom:
-                     * "Naan Group Owner aa? Client aa?"
-                     * Group Owner na → Server run panrom (SOS messages ku listen)
-                     * Client na → Server ku connect panrom (SOS messages anuppurom)
                      */
                     Log.d(TAG, "🔗 Connection state changed!")
                     wifiP2pManager?.requestConnectionInfo(channel) { info: WifiP2pInfo ->
                         if (info.groupFormed) {
+                            isConnected = true
                             Log.d(TAG, "Group formed! Am I owner? ${info.isGroupOwner}")
+
+                            // Notify UI that we have a connected peer
+                            onPeersChanged(maxOf(discoveredPeers.size, 1))
+
                             if (info.isGroupOwner) {
                                 // Naan Group Owner — server start panrom
                                 startServer()
@@ -182,8 +199,14 @@ class MeshManager(
                                 val ownerAddress = info.groupOwnerAddress?.hostAddress
                                 if (ownerAddress != null) {
                                     Log.d(TAG, "Connecting to group owner at $ownerAddress")
+                                    // Start server on client side too (to receive relayed messages)
+                                    startServer()
                                 }
                             }
+                        } else {
+                            isConnected = false
+                            Log.d(TAG, "📴 Group dissolved — not connected")
+                            onPeersChanged(0)
                         }
                     }
                 }
@@ -227,6 +250,25 @@ class MeshManager(
 
         // Start the server to listen for incoming SOS messages
         startServer()
+
+        // Schedule periodic re-discovery so phones keep trying to find each other
+        schedulePeriodicDiscovery()
+    }
+
+    /*
+     * Periodically restart peer discovery.
+     * Sometimes the first attempt doesn't find anyone, so we keep trying.
+     */
+    private fun schedulePeriodicDiscovery() {
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                if (!isConnected) {
+                    Log.d(TAG, "🔄 Retrying peer discovery...")
+                    startDiscovery()
+                }
+                handler.postDelayed(this, DISCOVERY_RETRY_INTERVAL_MS)
+            }
+        }, DISCOVERY_RETRY_INTERVAL_MS)
     }
 
     /*
@@ -279,6 +321,7 @@ class MeshManager(
     fun connectToPeer(device: WifiP2pDevice) {
         val config = WifiP2pConfig().apply {
             deviceAddress = device.deviceAddress
+            wps.setup = android.net.wifi.WpsInfo.PBC
         }
 
         wifiP2pManager?.connect(channel, config, object : WifiP2pManager.ActionListener {
@@ -351,6 +394,11 @@ class MeshManager(
             // In a real P2P scenario, we'd resolve the peer's IP first
             // For now, we use the group owner's address
             wifiP2pManager?.requestConnectionInfo(channel) { info ->
+                if (info.isGroupOwner) {
+                    Log.d(TAG, "We are the Group Owner, skipping TCP client send to avoid echoing to self")
+                    return@requestConnectionInfo
+                }
+
                 val groupOwnerAddress = info.groupOwnerAddress?.hostAddress ?: return@requestConnectionInfo
 
                 Thread {
@@ -402,8 +450,12 @@ class MeshManager(
 
                 while (isServerRunning) {
                     try {
-                        // accept() = "Wait till someone connects" — blocks here
+                        // accept() = "Wait till someone connects" — blocks here.
+                        // We shouldn't set timeout here because we WANT it to block and wait for connections
                         val clientSocket = serverSocket?.accept() ?: break
+                        
+                        // Set timeout ON THE CLIENT SOCKET so we don't block forever if a peer drops connection mid-transfer
+                        clientSocket.soTimeout = 5000
 
                         // Vera phone connect aachu! Data read panrom
                         val reader = BufferedReader(
@@ -450,7 +502,9 @@ class MeshManager(
     fun cleanup() {
         try {
             isServerRunning = false
+            isConnected = false
             serverSocket?.close()
+            handler.removeCallbacksAndMessages(null)
             context.unregisterReceiver(wifiP2pReceiver)
             wifiP2pManager?.removeGroup(channel, null)
             Log.d(TAG, "MeshManager cleaned up ✅")
