@@ -11,8 +11,7 @@ import android.os.*
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.*
 import com.innosence.disastersos.MainActivity
 import com.innosence.disastersos.data.PreferencesHelper
 import com.innosence.disastersos.data.SOSPacket
@@ -32,13 +31,20 @@ class MeshService : Service() {
     private var bluetoothMeshManager: BluetoothMeshManager? = null
     private val knowledgeBase = ConcurrentHashMap<String, SOSPacket>()
 
-    private var isGossipActive = false
+    private var isGossipActive = true // ALWAYS ACTIVE for SOS readiness
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var lastLocation: Location? = null
     private val handler = Handler(Looper.getMainLooper())
     private var listener: MeshServiceListener? = null
 
     private var lastBroadcastPacket: SOSPacket? = null
     private var currentGossipInterval = GOSSIP_INTERVAL_NORMAL
+
+    private val locationCallback = object : com.google.android.gms.location.LocationCallback() {
+        override fun onLocationResult(result: com.google.android.gms.location.LocationResult) {
+            lastLocation = result.lastLocation
+        }
+    }
 
     interface MeshServiceListener {
         fun onKnowledgeBaseUpdated(data: List<SOSPacket>)
@@ -56,12 +62,12 @@ class MeshService : Service() {
         private const val NOTIFICATION_CHANNEL_ID = "disaster_sos_mesh"
         private const val NOTIFICATION_ID = 1
 
-        private const val GOSSIP_INTERVAL_NORMAL = 15_000L
-        private const val GOSSIP_INTERVAL_URGENT = 3_000L
-        private const val GOSSIP_INTERVAL_CRITICAL = 5_000L
+        private const val GOSSIP_INTERVAL_NORMAL = 10_000L // Faster default
+        private const val GOSSIP_INTERVAL_URGENT = 2_500L
+        private const val GOSSIP_INTERVAL_CRITICAL = 4_000L
         
-        private const val GPS_CHANGE_THRESHOLD = 0.0001
-        private const val BATTERY_CHANGE_THRESHOLD = 2
+        private const val GPS_CHANGE_THRESHOLD = 0.00005
+        private const val BATTERY_CHANGE_THRESHOLD = 1
 
         fun start(context: Context) {
             val intent = Intent(context, MeshService::class.java)
@@ -81,12 +87,19 @@ class MeshService : Service() {
         currentRole = prefsHelper.getUserRole()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         
-        if (currentRole == PreferencesHelper.ROLE_RESCUER) {
-            isGossipActive = true
-        }
-
+        startLocationUpdates()
         initializeNetworking()
         startGossipLoop()
+    }
+
+    private fun startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        
+        val request = com.google.android.gms.location.LocationRequest.Builder(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 5000
+        ).setMinUpdateDistanceMeters(2f).build()
+        
+        fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -125,11 +138,6 @@ class MeshService : Service() {
     }
 
     private fun handleIncomingGossip(packet: SOSPacket) {
-        if (packet.packetType == SOSPacket.TYPE_RESCUE_START && !isGossipActive) {
-            isGossipActive = true
-            broadcastOwnStatus()
-        }
-
         val existing = knowledgeBase[packet.nodeId]
         if (existing != null && existing.sequenceNumber >= packet.sequenceNumber) return
 
@@ -138,15 +146,11 @@ class MeshService : Service() {
 
         if (!packet.hasReachedMaxHops()) {
             val relayPacket = packet.incrementHop()
-            if (packet.needsPriority()) {
-                Thread {
-                    meshManager?.broadcastSOS(relayPacket)
-                    bluetoothMeshManager?.broadcastPacket(relayPacket)
-                }.start()
-            } else {
+            // Run relay in background thread for large meshes
+            Thread {
                 meshManager?.broadcastSOS(relayPacket)
                 bluetoothMeshManager?.broadcastPacket(relayPacket)
-            }
+            }.start()
         }
     }
 
@@ -154,8 +158,8 @@ class MeshService : Service() {
         if (currentRole != PreferencesHelper.ROLE_RESCUER) return
         val startPacket = SOSPacket(
             nodeId = nodeId,
-            latitude = 0.0,
-            longitude = 0.0,
+            latitude = lastLocation?.latitude ?: 0.0,
+            longitude = lastLocation?.longitude ?: 0.0,
             batteryLevel = getBatteryLevel(),
             timestamp = System.currentTimeMillis(),
             packetType = SOSPacket.TYPE_RESCUE_START,
@@ -189,13 +193,17 @@ class MeshService : Service() {
     }
 
     private fun broadcastOwnStatus() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            checkDeltaAndSend(0.0, 0.0)
-            return
-        }
-
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            checkDeltaAndSend(location?.latitude ?: 0.0, location?.longitude ?: 0.0)
+        val loc = lastLocation
+        if (loc != null) {
+            checkDeltaAndSend(loc.latitude, loc.longitude)
+        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            // If lastLocation is null but we have permission, try a one-shot fix
+            fusedLocationClient.lastLocation.addOnSuccessListener { oneShot ->
+                if (oneShot != null) {
+                    lastLocation = oneShot
+                    checkDeltaAndSend(oneShot.latitude, oneShot.longitude)
+                }
+            }
         }
     }
 
