@@ -33,6 +33,18 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
 
     private lateinit var ivCompassArrow: ImageView
     private lateinit var tvDistanceText: TextView
+    private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
+    
+    private val locationCallback = object : com.google.android.gms.location.LocationCallback() {
+        override fun onLocationResult(result: com.google.android.gms.location.LocationResult) {
+            val location = result.lastLocation
+            if (location != null) {
+                myLat = location.latitude
+                myLng = location.longitude
+                updateDistance()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,22 +64,17 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         
-        fetchCurrentLocationAndUpdate()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        startLocationUpdates()
     }
 
-    private fun fetchCurrentLocationAndUpdate() {
-        if (ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    myLat = location.latitude
-                    myLng = location.longitude
-                    updateDistance()
-                }
-            }
+    private fun startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            val request = com.google.android.gms.location.LocationRequest.Builder(
+                com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 2000
+            ).setMinUpdateDistanceMeters(1f).build()
+            
+            fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
         }
     }
 
@@ -80,6 +87,11 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
     override fun onPause() {
         super.onPause()
         sensorManager.unregisterListener(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
     override fun onSensorChanged(event: SensorEvent) {

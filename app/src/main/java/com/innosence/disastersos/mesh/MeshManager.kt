@@ -257,15 +257,15 @@ class MeshManager(
 
     /*
      * Periodically restart peer discovery.
-     * Sometimes the first attempt doesn't find anyone, so we keep trying.
+     * We keep trying to find NEW peers even if we are already connected.
      */
     private fun schedulePeriodicDiscovery() {
         handler.postDelayed(object : Runnable {
             override fun run() {
-                if (!isConnected) {
-                    Log.d(TAG, "🔄 Retrying peer discovery...")
-                    startDiscovery()
-                }
+                // In Wi-Fi Direct, discovery might fail if we are in the middle of a connection
+                // but we try anyway to keep the mesh alive.
+                Log.d(TAG, "🔄 Mesh check: Discovering new peers...")
+                startDiscovery()
                 handler.postDelayed(this, DISCOVERY_RETRY_INTERVAL_MS)
             }
         }, DISCOVERY_RETRY_INTERVAL_MS)
@@ -275,32 +275,20 @@ class MeshManager(
      * ────────────────────────────────────────────────────────────────
      *  startDiscovery() — NEARBY PHONES THEDHURADHU
      * ────────────────────────────────────────────────────────────────
-     *
-     *  TANGLISH:
-     *  "Asingamaa kekkurom — yaaravadhu irukkeengalaa?" 📢
-     *
-     *  Phone oda Wi-Fi chip special probe signals anuppum.
-     *  Nearby phones (same app install pannirundha) respond pannuvanga.
-     *  Android automatically peer list update pannum.
-     *
-     *  Idhu continuous ah run aagum — pudhu phones range ku vandhaa
-     *  automatically detect aagum.
      */
     @SuppressLint("MissingPermission")
     fun startDiscovery() {
         wifiP2pManager?.discoverPeers(channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
-                Log.d(TAG, "📡 Peer discovery started successfully!")
+                Log.d(TAG, "📡 Peer discovery active")
             }
 
             override fun onFailure(reasonCode: Int) {
-                val reason = when (reasonCode) {
-                    WifiP2pManager.P2P_UNSUPPORTED -> "Wi-Fi Direct not supported on this device"
-                    WifiP2pManager.BUSY -> "System is busy, will retry"
-                    WifiP2pManager.ERROR -> "Internal error"
-                    else -> "Unknown error ($reasonCode)"
+                // If busy, it usually means we are connecting or already have a group.
+                // We don't log error for BUSY to keep logs clean.
+                if (reasonCode != WifiP2pManager.BUSY) {
+                    Log.w(TAG, "❌ Discovery failed: $reasonCode")
                 }
-                Log.e(TAG, "❌ Peer discovery failed: $reason")
             }
         })
     }
@@ -309,28 +297,27 @@ class MeshManager(
      * ────────────────────────────────────────────────────────────────
      *  connectToPeer() — ORU PHONE KU CONNECT AAGURADHU
      * ────────────────────────────────────────────────────────────────
-     *
-     *  TANGLISH:
-     *  Nearby phone ah kandupidichirukom. Ippo "handshake" panrom.
-     *  "Naan un kitta data anuppa connect aagalamaa?" nu kekkurom.
-     *
-     *  WifiP2pConfig = "Connection settings" — yaar kitta connect
-     *  aaganum nu specify panrom (MAC address vazhiya).
      */
     @SuppressLint("MissingPermission")
     fun connectToPeer(device: WifiP2pDevice) {
+        if (isConnected && device.status == WifiP2pDevice.CONNECTED) return
+
         val config = WifiP2pConfig().apply {
             deviceAddress = device.deviceAddress
             wps.setup = android.net.wifi.WpsInfo.PBC
+            // Prefer NOT to be group owner if we are a victim, to let rescuers take charge
+            groupOwnerIntent = 0 
         }
 
         wifiP2pManager?.connect(channel, config, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
-                Log.d(TAG, "🔗 Connection initiated with ${device.deviceName}")
+                Log.d(TAG, "🔗 Connecting to ${device.deviceName}...")
             }
 
             override fun onFailure(reason: Int) {
-                Log.e(TAG, "❌ Connection failed with ${device.deviceName}")
+                if (reason != WifiP2pManager.BUSY) {
+                    Log.e(TAG, "❌ Connection failed: $reason")
+                }
             }
         })
     }

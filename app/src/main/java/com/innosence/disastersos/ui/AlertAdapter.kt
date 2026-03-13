@@ -54,7 +54,16 @@ class AlertAdapter(
 
         holder.tvAlertTime.text = timeFormat.format(Date(packet.timestamp))
         holder.tvAlertNodeId.text = packet.deviceName
-        holder.tvAlertLocation.text = "%.4f, %.4f".format(packet.latitude, packet.longitude)
+        
+        if (packet.latitude == 0.0 && packet.longitude == 0.0) {
+            holder.tvAlertLocation.text = "WAITING FOR GPS..."
+            holder.btnNavigate.isEnabled = false
+            holder.btnNavigate.alpha = 0.5f
+        } else {
+            holder.tvAlertLocation.text = "%.4f, %.4f".format(packet.latitude, packet.longitude)
+            holder.btnNavigate.isEnabled = true
+            holder.btnNavigate.alpha = 1.0f
+        }
         
         // We reuse Confidence field for Sequence Number (Version) display or just hide it
         holder.tvAlertConfidence.text = "Ver: ${packet.sequenceNumber.toString().takeLast(4)}"
