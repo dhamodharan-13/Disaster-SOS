@@ -76,6 +76,7 @@ class AlertAdapter(
             holder.btnMarkRescued.visibility = View.VISIBLE
             holder.btnMarkRescued.setOnClickListener { onRescueClick?.invoke(packet.nodeId) }
             
+            // Navigate button logic
             holder.btnNavigate.visibility = View.VISIBLE
             holder.btnNavigate.setOnClickListener {
                 onNavigateClick?.invoke(packet.latitude, packet.longitude)
