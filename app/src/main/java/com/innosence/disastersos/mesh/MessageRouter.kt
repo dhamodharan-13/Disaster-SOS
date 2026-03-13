@@ -69,6 +69,7 @@ class MessageRouter {
      *  @param ownNodeId — Namma phone oda node ID
      *  @return true = relay pannu, false = ignore pannu
      */
+    @Synchronized
     fun shouldRelay(packet: SOSPacket, ownNodeId: String): Boolean {
         // Generate unique key for this specific SOS
         val messageKey = "${packet.nodeId}:${packet.timestamp}"
@@ -92,7 +93,7 @@ class MessageRouter {
         }
 
         // All checks passed ✅ — remember this message and allow relay
-        markAsSeen(messageKey)
+        markAsSeenInternal(messageKey)
         Log.d(TAG, "✅ Message approved for relay: $messageKey (hop ${packet.hopCount})")
         return true
     }
@@ -103,7 +104,12 @@ class MessageRouter {
      * ────────────────────────────────────────────────────────────────
      *  Cache overflow aagaama, oldest entries clean up panrom.
      */
+    @Synchronized
     fun markAsSeen(messageKey: String) {
+        markAsSeenInternal(messageKey)
+    }
+
+    private fun markAsSeenInternal(messageKey: String) {
         seenMessages.add(messageKey)
 
         // Cache size limit exceed aana, oldest entries remove
@@ -117,6 +123,7 @@ class MessageRouter {
     /**
      * Cache clear panrom — testing ku useful
      */
+    @Synchronized
     fun clearCache() {
         seenMessages.clear()
     }
@@ -124,5 +131,7 @@ class MessageRouter {
     /**
      * Evvalavu unique messages paathirukkoom
      */
+    @Synchronized
     fun getSeenCount(): Int = seenMessages.size
+
 }

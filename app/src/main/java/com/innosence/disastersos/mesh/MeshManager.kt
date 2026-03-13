@@ -20,6 +20,7 @@ import com.innosence.disastersos.data.SOSPacket
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
+import java.util.concurrent.CopyOnWriteArrayList
 import java.net.ServerSocket
 import java.net.Socket
 
@@ -390,12 +391,12 @@ class MeshManager(
 
                 Thread {
                     try {
-                        val socket = Socket(groupOwnerAddress, SERVER_PORT)
-                        val writer = PrintWriter(socket.getOutputStream(), true)
-                        writer.println(jsonString)
-                        writer.flush()
-                        socket.close()
-                        Log.d(TAG, "✅ SOS sent to ${peer.deviceName}")
+                        Socket(groupOwnerAddress, SERVER_PORT).use { socket ->
+                            val writer = PrintWriter(socket.getOutputStream(), true)
+                            writer.println(jsonString)
+                            writer.flush()
+                            Log.d(TAG, "✅ SOS sent to ${peer.deviceName}")
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ Socket send failed: ${e.message}")
                     }
@@ -441,25 +442,25 @@ class MeshManager(
                         // We shouldn't set timeout here because we WANT it to block and wait for connections
                         val clientSocket = serverSocket?.accept() ?: break
                         
-                        // Set timeout ON THE CLIENT SOCKET so we don't block forever if a peer drops connection mid-transfer
-                        clientSocket.soTimeout = 5000
+                        clientSocket.use { socket ->
+                            // Set timeout ON THE CLIENT SOCKET so we don't block forever if a peer drops connection mid-transfer
+                            socket.soTimeout = 5000
 
-                        // Vera phone connect aachu! Data read panrom
-                        val reader = BufferedReader(
-                            InputStreamReader(clientSocket.getInputStream())
-                        )
-                        val jsonString = reader.readLine()
+                            // Vera phone connect aachu! Data read panrom
+                            val reader = BufferedReader(
+                                InputStreamReader(socket.getInputStream())
+                            )
+                            val jsonString = reader.readLine()
 
-                        if (jsonString != null) {
-                            // JSON string ah SOSPacket object aakkurom (deserialize)
-                            val packet = gson.fromJson(jsonString, SOSPacket::class.java)
-                            Log.d(TAG, "📥 SOS RECEIVED from node ${packet.nodeId}!")
+                            if (jsonString != null) {
+                                // JSON string ah SOSPacket object aakkurom (deserialize)
+                                val packet = gson.fromJson(jsonString, SOSPacket::class.java)
+                                Log.d(TAG, "📥 SOS RECEIVED from node ${packet.nodeId}!")
 
-                            // MainActivity ku callback vazhiya alert anuppurom
-                            onSOSReceived(packet)
+                                // MainActivity ku callback vazhiya alert anuppurom
+                                onSOSReceived(packet)
+                            }
                         }
-
-                        clientSocket.close()
                     } catch (e: Exception) {
                         if (isServerRunning) {
                             Log.e(TAG, "Error handling client connection: ${e.message}")

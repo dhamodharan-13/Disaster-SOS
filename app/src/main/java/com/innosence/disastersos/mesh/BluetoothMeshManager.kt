@@ -13,6 +13,8 @@ import com.google.gson.Gson
 import com.innosence.disastersos.data.SOSPacket
 import java.nio.charset.Charset
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
 
 /*
  * ============================================================================
@@ -83,13 +85,13 @@ class BluetoothMeshManager(
     private val messageRouter = MessageRouter()
 
     // Track connected devices to relay messages through the mesh
-    private val connectedDevices = mutableMapOf<String, BluetoothGatt>()
+    private val connectedDevices = ConcurrentHashMap<String, BluetoothGatt>()
 
     // Track discovered peers and their RSSI for distance estimation
-    private val peerRSSI = mutableMapOf<String, Int>()
+    private val peerRSSI = ConcurrentHashMap<String, Int>()
 
     // Track devices connected to our GATT server (Clients that connected to us)
-    private val serverConnectedDevices = mutableSetOf<BluetoothDevice>()
+    private val serverConnectedDevices = Collections.newSetFromMap(ConcurrentHashMap<BluetoothDevice, Boolean>())
 
     // BLE Scanner and Advertiser
     private var bleScanner: BluetoothLeScanner? = null
@@ -99,7 +101,7 @@ class BluetoothMeshManager(
     private var isAdvertising = false
 
     // Buffer for receiving chunked messages (BLE has small MTU)
-    private val receiveBuffers = mutableMapOf<String, StringBuilder>()
+    private val receiveBuffers = ConcurrentHashMap<String, StringBuilder>()
 
     // ────────────────────────────────────────────────────────────────
     //  initialize() — Set up BLE advertising and scanning
