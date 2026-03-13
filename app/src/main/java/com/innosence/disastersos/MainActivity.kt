@@ -85,10 +85,40 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
         checkAndPromptServices()
         startHardwareMonitoring()
 
-        // Start and Bind to MeshService
+        if (hasRequiredPermissions()) {
+            startAndBindMeshService()
+        }
+    }
+
+    private fun startAndBindMeshService() {
+        if (isBound) return
         MeshService.start(this)
         val intent = Intent(this, MeshService::class.java)
         bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+    }
+
+    private fun hasRequiredPermissions(): Boolean {
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        // Background location is often a separate request, but we include it in the check
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+        }
+        return permissions.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                startAndBindMeshService()
+            } else {
+                Toast.makeText(this, "Permissions required for mesh networking", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun setupAdapters() {

@@ -87,9 +87,24 @@ class MeshService : Service() {
         currentRole = prefsHelper.getUserRole()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         
-        startLocationUpdates()
-        initializeNetworking()
-        startGossipLoop()
+        if (hasRequiredPermissions()) {
+            startLocationUpdates()
+            initializeNetworking()
+            startGossipLoop()
+        }
+    }
+
+    private fun hasRequiredPermissions(): Boolean {
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+        }
+        return permissions.all { ActivityCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
     }
 
     private fun startLocationUpdates() {
@@ -112,6 +127,13 @@ class MeshService : Service() {
             startForeground(NOTIFICATION_ID, notification, type)
         } else {
             startForeground(NOTIFICATION_ID, notification)
+        }
+
+        // RE-CHECK permissions in case we started before they were granted
+        if (meshManager == null && hasRequiredPermissions()) {
+            startLocationUpdates()
+            initializeNetworking()
+            startGossipLoop()
         }
         
         return START_STICKY
