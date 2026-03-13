@@ -192,6 +192,16 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
                 // AlertAdapter manages unique nodes automatically now
                 filteredData.forEach { alertAdapter.addOrUpdateAlert(it) }
             }
+            
+            // Also update OWN GPS coordinates on the main screen
+            val myData = data.find { it.nodeId == nodeId }
+            if (myData != null) {
+                if (myData.latitude == 0.0 && myData.longitude == 0.0) {
+                    binding.tvGpsCoordinates.text = "Acquiring location..."
+                } else {
+                    binding.tvGpsCoordinates.text = "%.4f, %.4f".format(myData.latitude, myData.longitude)
+                }
+            }
         }
     }
 
