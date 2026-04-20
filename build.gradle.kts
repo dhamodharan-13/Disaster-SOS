@@ -24,21 +24,6 @@
  */
 
 plugins {
-    /*
-     * The Android Application plugin — teaches Gradle how to:
-     *   - Compile Kotlin/Java code into Android bytecode
-     *   - Package resources (images, layouts) into an APK
-     *   - Sign the APK for installation on a phone
-     *
-     * "apply false" = "Register this plugin but don't activate it here.
-     * The app/build.gradle.kts will activate it."
-     */
-    id("com.android.application") version "8.7.0" apply false
-
-    /*
-     * The Kotlin Android plugin — teaches Gradle how to compile Kotlin code.
-     * Kotlin is the modern language for Android development (replaces Java).
-     * It's cleaner, safer, and more concise.
-     */
-    id("org.jetbrains.kotlin.android") version "2.0.0" apply false
+    id("com.android.application") version "8.6.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
 }

@@ -62,9 +62,10 @@ class MeshService : Service() {
         private const val NOTIFICATION_CHANNEL_ID = "disaster_sos_mesh"
         private const val NOTIFICATION_ID = 1
 
-        private const val GOSSIP_INTERVAL_NORMAL = 10_000L // Faster default
-        private const val GOSSIP_INTERVAL_URGENT = 2_500L
-        private const val GOSSIP_INTERVAL_CRITICAL = 4_000L
+        // Increased intervals for battery conservation
+        private const val GOSSIP_INTERVAL_NORMAL = 20_000L // Sent every 20s if no movement
+        private const val GOSSIP_INTERVAL_URGENT = 5_000L
+        private const val GOSSIP_INTERVAL_CRITICAL = 8_000L
         
         private const val GPS_CHANGE_THRESHOLD = 0.00005
         private const val BATTERY_CHANGE_THRESHOLD = 1
@@ -110,9 +111,10 @@ class MeshService : Service() {
     private fun startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
         
+        // Changed to 15s interval and 5m distance to save battery
         val request = com.google.android.gms.location.LocationRequest.Builder(
-            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 5000
-        ).setMinUpdateDistanceMeters(2f).build()
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 15000
+        ).setMinUpdateDistanceMeters(5f).build()
         
         fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
     }

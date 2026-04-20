@@ -28,7 +28,7 @@ class DeviceAdapter : RecyclerView.Adapter<DeviceAdapter.DeviceViewHolder>() {
     @SuppressLint("NotifyDataSetChanged")
     fun updateDevices(newDevices: List<WifiP2pDevice>) {
         devices.clear()
-        devices.addAll(newDevices)
+        devices.addAll(newDevices.distinctBy { it.deviceAddress })
         notifyDataSetChanged()
     }
 

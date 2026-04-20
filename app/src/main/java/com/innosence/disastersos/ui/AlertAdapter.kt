@@ -19,7 +19,8 @@ import java.util.Locale
 class AlertAdapter(
     var currentRole: String = PreferencesHelper.ROLE_VICTIM,
     private val onRescueClick: ((String) -> Unit)? = null,
-    private val onNavigateClick: ((Double, Double) -> Unit)? = null
+    private val onNavigateClick: ((Double, Double) -> Unit)? = null,
+    private val onMapsClick: ((Double, Double) -> Unit)? = null
 ) : RecyclerView.Adapter<AlertAdapter.AlertViewHolder>() {
 
     private val alerts = mutableListOf<SOSPacket>()
@@ -35,6 +36,7 @@ class AlertAdapter(
         val tvAlertHops: TextView = itemView.findViewById(R.id.tvAlertHops)
         val btnMarkRescued: Button = itemView.findViewById(R.id.btnMarkRescued)
         val btnNavigate: Button = itemView.findViewById(R.id.btnNavigate)
+        val btnGoogleMaps: Button = itemView.findViewById(R.id.btnGoogleMaps)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AlertViewHolder {
@@ -59,10 +61,14 @@ class AlertAdapter(
             holder.tvAlertLocation.text = "WAITING FOR GPS..."
             holder.btnNavigate.isEnabled = false
             holder.btnNavigate.alpha = 0.5f
+            holder.btnGoogleMaps.isEnabled = false
+            holder.btnGoogleMaps.alpha = 0.5f
         } else {
             holder.tvAlertLocation.text = "%.4f, %.4f".format(packet.latitude, packet.longitude)
             holder.btnNavigate.isEnabled = true
             holder.btnNavigate.alpha = 1.0f
+            holder.btnGoogleMaps.isEnabled = true
+            holder.btnGoogleMaps.alpha = 1.0f
         }
         
         // We reuse Confidence field for Sequence Number (Version) display or just hide it
@@ -81,31 +87,31 @@ class AlertAdapter(
             holder.btnNavigate.setOnClickListener {
                 onNavigateClick?.invoke(packet.latitude, packet.longitude)
             }
+
+            // Google Maps button logic
+            holder.btnGoogleMaps.visibility = View.VISIBLE
+            holder.btnGoogleMaps.setOnClickListener {
+                onMapsClick?.invoke(packet.latitude, packet.longitude)
+            }
         } else {
             holder.btnMarkRescued.visibility = View.GONE
             holder.btnNavigate.visibility = View.GONE
+            holder.btnGoogleMaps.visibility = View.GONE
         }
     }
 
     override fun getItemCount(): Int = alerts.size
 
     /**
-     * DEDUPLICATION: Ensures only the LATEST version of each node's data is shown.
+     * DEDUPLICATION: Entirely syncs the list to prevent any duplicate visual bugs.
      */
-    fun addOrUpdateAlert(packet: SOSPacket) {
-        val existingIndex = alerts.indexOfFirst { it.nodeId == packet.nodeId }
-        
-        if (existingIndex != -1) {
-            // ONLY update if the new packet is NEWER (Sequence Number check)
-            if (packet.sequenceNumber > alerts[existingIndex].sequenceNumber) {
-                alerts[existingIndex] = packet
-                notifyItemChanged(existingIndex)
-            }
-        } else {
-            // New phone discovered! Add to top.
-            alerts.add(0, packet)
-            notifyItemInserted(0)
-        }
+    fun setAlerts(newAlerts: List<SOSPacket>) {
+        alerts.clear()
+        // Ensure absolutely no duplicates remain, sorted by most recent first
+        val distinctAlerts = newAlerts.distinctBy { it.nodeId }
+            .sortedByDescending { it.timestamp }
+        alerts.addAll(distinctAlerts)
+        notifyDataSetChanged()
     }
 
     fun removeAlertsByNodeId(nodeId: String) {

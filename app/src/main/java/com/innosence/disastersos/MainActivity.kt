@@ -7,6 +7,7 @@ import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.drawable.GradientDrawable
 import android.location.LocationManager
+import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
@@ -121,9 +122,12 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
 
     private fun setupAdapters() {
         // We use alertAdapter to show the list of all phones in the Knowledge Base
-        alertAdapter = AlertAdapter(currentRole, ::onRescuedClicked) { lat, lon -> 
-            startCompassActivity(lat, lon) 
-        }
+        alertAdapter = AlertAdapter(
+            currentRole, 
+            ::onRescuedClicked, 
+            { lat, lon -> startCompassActivity(lat, lon) },
+            { lat, lon -> openInGoogleMaps(lat, lon) }
+        )
         binding.rvAlertLog.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = alertAdapter
@@ -133,6 +137,21 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
         binding.rvConnectedDevices.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = deviceAdapter
+        }
+    }
+
+    private fun openInGoogleMaps(lat: Double, lon: Double) {
+        val uri = "google.navigation:q=$lat,$lon"
+        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri))
+        intent.setPackage("com.google.android.apps.maps")
+        
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            // Fallback: If Google Maps app is not installed, open in browser
+            val webUri = "https://www.google.com/maps/dir/?api=1&destination=$lat,$lon"
+            val webIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(webUri))
+            startActivity(webIntent)
         }
     }
 
@@ -190,7 +209,7 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
                 binding.tvEmptyLog.visibility = View.GONE
                 
                 // AlertAdapter manages unique nodes automatically now
-                filteredData.forEach { alertAdapter.addOrUpdateAlert(it) }
+                alertAdapter.setAlerts(filteredData)
             }
             
             // Also update OWN GPS coordinates on the main screen
