@@ -63,7 +63,7 @@
                 android:textSize="13sp"
                 android:layout_marginBottom="2dp" />
 
-            <!-- Row 3: GPS Coordinates & Navigate Button -->
+            <!-- Row 3: GPS Coordinates & Action Buttons -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -80,19 +80,43 @@
                     android:textColor="@color/text_primary"
                     android:textSize="13sp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnNavigate"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                <LinearLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:text="Navigate"
-                    android:textColor="@color/info_blue"
-                    android:textSize="12sp"
-                    android:visibility="gone"
-                    app:icon="@android:drawable/ic_menu_mapmode"
-                    app:iconTint="@color/info_blue" />
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!-- Compass: Offline Navigation -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnNavigate"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:text="Compass"
+                        android:textColor="@color/info_blue"
+                        android:textSize="11sp"
+                        android:visibility="gone"
+                        app:icon="@android:drawable/ic_menu_compass"
+                        app:iconSize="14dp"
+                        app:iconTint="@color/info_blue" />
+
+                    <!-- Google Maps: Online Navigation -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnGoogleMaps"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:text="Maps"
+                        android:textColor="@color/safe_green"
+                        android:textSize="11sp"
+                        android:visibility="gone"
+                        app:icon="@android:drawable/ic_menu_mapmode"
+                        app:iconSize="14dp"
+                        app:iconTint="@color/safe_green" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Row 4: Metadata row -->
