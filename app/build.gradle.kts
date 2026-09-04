@@ -6,12 +6,12 @@ plugins {
 android {
     namespace = "com.innosence.disastersos"
     
-    // Updated to Android 15 (API 35) to meet modern standards
+    // Kept at Android 15 (API 35) as requested
     compileSdk = 35
 
     defaultConfig {
         applicationId = "com.innosence.disastersos"
-        minSdk = 30
+        minSdk = 30 
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -38,7 +38,6 @@ android {
 }
 
 dependencies {
-    // CORE ANDROID
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
@@ -47,12 +46,9 @@ dependencies {
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
-    // LOCATION (GPS) - Works Offline
+    // Location library compatible with SDK 35
     implementation("com.google.android.gms:play-services-location:21.1.0")
 
-    // DATA SERIALIZATION
     implementation("com.google.code.gson:gson:2.10.1")
-
-    // TESTING
     testImplementation("junit:junit:4.13.2")
 }
