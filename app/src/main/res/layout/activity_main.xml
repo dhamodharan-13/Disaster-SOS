@@ -163,24 +163,7 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/tvConfidence"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/confidence_label"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp"
-                        android:layout_marginTop="3dp" />
                 </LinearLayout>
-
-                <!-- Battery -->
-                <TextView
-                    android:id="@+id/tvBatteryLevel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="100%"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
             </LinearLayout>
         </FrameLayout>
 
@@ -399,64 +382,6 @@
                 app:strokeColor="@color/action_blue_stroke"
                 android:visibility="gone" />
 
-        </LinearLayout>
-
-        <!-- ══════════════════════════════════════════════════════ -->
-        <!--  SECTION: Discovered Victims (Rescuer Only)          -->
-        <!-- ══════════════════════════════════════════════════════ -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:layout_marginTop="12dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="8dp">
-
-                <TextView
-                    android:id="@+id/tvVictimListTitle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/discovered_victims"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.02"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/tvVictimListArrow"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="→"
-                    android:textColor="@color/text_hint"
-                    android:textSize="18sp"
-                    android:visibility="gone" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvEmptyVictimList"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/empty_victim_list"
-                android:textColor="@color/text_hint"
-                android:textSize="13sp"
-                android:gravity="center"
-                android:padding="24dp"
-                android:visibility="gone" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvVictimList"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                android:visibility="gone" />
         </LinearLayout>
 
         <!-- ══════════════════════════════════════════════════════ -->

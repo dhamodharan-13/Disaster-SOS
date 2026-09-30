@@ -31,7 +31,6 @@ class MeshService : Service() {
     private var bluetoothMeshManager: BluetoothMeshManager? = null
     private val knowledgeBase = ConcurrentHashMap<String, SOSPacket>()
 
-    private var isGossipActive = true // ALWAYS ACTIVE for SOS readiness
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var lastLocation: Location? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -196,9 +195,7 @@ class MeshService : Service() {
     private fun startGossipLoop() {
         handler.post(object : Runnable {
             override fun run() {
-                if (isGossipActive) {
-                    broadcastOwnStatus()
-                }
+                broadcastOwnStatus()
                 handler.postDelayed(this, currentGossipInterval)
             }
         })

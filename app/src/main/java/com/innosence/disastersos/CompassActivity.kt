@@ -16,7 +16,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.button.MaterialButton
-import com.innosence.disastersos.R
 
 class CompassActivity : AppCompatActivity(), SensorEventListener {
 

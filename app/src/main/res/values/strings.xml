@@ -2,19 +2,12 @@
     <string name="app_name">Disaster SOS</string>
 
     <!-- Dashboard Status -->
-    <string name="status_listening">Listening for distress signals</string>
-    <string name="status_alert_detected">DISTRESS DETECTED</string>
     <string name="status_idle">System Idle</string>
     <string name="status_connecting">Searching for nearby devices</string>
     <string name="status_ready">Ready to locate victims</string>
     <string name="status_scanning">Scanning for victims…</string>
-    <string name="status_sos_sent">SOS SENT</string>
 
-    <!-- Buttons -->
     <string name="sos_button_text">FIND HELP</string>
-    <string name="sos_button_description">Manual emergency SOS button</string>
-    <string name="btn_start_listening">Start Listening</string>
-    <string name="btn_stop_listening">Stop Listening</string>
     <string name="btn_find_victims">Find Nearby Victims</string>
 
     <!-- Roles -->
@@ -30,8 +23,6 @@
     <!-- Alert Log -->
     <string name="alert_log_title">Alert Log</string>
     <string name="alert_log_empty">No alerts received</string>
-    <string name="alert_received_from">SOS from Node %s</string>
-    <string name="alert_confidence">Confidence: %d%%</string>
 
     <!-- Permissions -->
     <string name="permission_rationale_mic">Microphone access is needed to detect distress sounds.</string>
@@ -43,7 +34,4 @@
     <string name="gps_coordinates">%1$.4f, %2$.4f</string>
     <string name="timestamp_format">HH:mm:ss</string>
     <string name="gps_label">GPS Location</string>
-    <string name="confidence_label">AI Confidence: --</string>
-    <string name="discovered_victims">Discovered Victims</string>
-    <string name="empty_victim_list">No victims discovered yet. Tap \'Find Nearby Victims\' to scan.</string>
 </resources>
