@@ -192,9 +192,7 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
             binding.tvStatus.text = "Waiting for Rescuer signal..."
         }
         
-        // Hide the victim list recycler as it's redundant with the knowledge base log
-        binding.rvVictimList.visibility = View.GONE
-        binding.tvVictimListTitle.visibility = View.GONE
+        // Alert log recycler is always visible when data is available
     }
 
     // --- MeshServiceListener Callbacks ---

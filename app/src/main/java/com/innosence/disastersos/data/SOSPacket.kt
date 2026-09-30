@@ -16,9 +16,8 @@ data class SOSPacket(
     val hopCount: Int = 0,
     val sequenceNumber: Long = System.currentTimeMillis(),
     
-    // IMPROVEMENT: Priority flags for better mesh management
-    val isCritical: Boolean = false, // Set true if battery < 15%
-    val version: Int = 1 // Schema versioning
+    // Priority flag: set true if battery < 15% for urgent relay
+    val isCritical: Boolean = false
 ) {
     companion object {
         const val TYPE_RESCUE_START = "RESCUE_START"
@@ -31,6 +30,4 @@ data class SOSPacket(
     fun hasReachedMaxHops(): Boolean = hopCount >= MAX_HOPS
     fun getUniqueKey(): String = nodeId
     
-    // Check if this packet needs urgent attention
-    fun needsPriority(): Boolean = isCritical || batteryLevel < CRITICAL_BATTERY_THRESHOLD
 }
