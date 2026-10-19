@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Pin body -->
+    <path
+        android:fillColor="#FF42A5F5"
+        android:pathData="M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7,-7.75 7,-13c0,-3.87 -3.13,-7 -7,-7z"/>
+    <!-- Center Shield icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,5l4,1.5v3.5c0,2.5 -1.7,4.8 -4,5.5c-2.3,-0.7 -4,-3 -4,-5.5V6.5L12,5z"/>
+</vector>

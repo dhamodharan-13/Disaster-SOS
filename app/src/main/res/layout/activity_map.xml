@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_primary">
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!--  FULLSCREEN OSM MAP VIEW (OpenStreetMap / OSMDroid)    -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <org.osmdroid.views.MapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!--  TOP HEADER — Glassmorphic Navigation Bar             -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/llHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="36dp"
+        android:background="@drawable/bg_glass_card"
+        android:elevation="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="10dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Back Button -->
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/text_primary" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mesh Network Map"
+                android:textColor="@color/text_primary"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvHeaderSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Offline OpenStreetMap • Live Telemetry"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Node Count Pill -->
+        <TextView
+            android:id="@+id/tvNodeCountBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_icon_circle_blue"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
+            android:text="0 Nodes"
+            android:textColor="@color/info_blue"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!--  NETWORK LEGEND STRIP (Collapsible / Informational)   -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/llLegend"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_glass_card"
+        android:elevation="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/llHeader">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔵 You"
+            android:textColor="@color/text_primary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="🔴 SOS Victim"
+            android:textColor="@color/emergency_red"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="🟢 Rescuer"
+            android:textColor="@color/safe_green"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvLegendHops"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="〰️ Mesh Link"
+            android:textColor="@color/info_blue"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!--  FLOATING MAP CONTROLS (Right-side column)            -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/llMapControls"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="24dp"
+        android:elevation="10dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/cardSelectedNode"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Fit All Nodes -->
+        <ImageButton
+            android:id="@+id/fabFitAll"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_map_control_button"
+            android:contentDescription="Fit All Nodes"
+            android:src="@drawable/ic_fit_bounds"
+            app:tint="@color/text_primary" />
+
+        <!-- Toggle Mesh Relay Lines -->
+        <ImageButton
+            android:id="@+id/fabToggleMeshLines"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_map_control_button"
+            android:contentDescription="Toggle Mesh Hop Lines"
+            android:src="@drawable/ic_mesh_links"
+            app:tint="@color/info_blue" />
+
+        <!-- Map Tactical Dark / Day Mode Toggle -->
+        <ImageButton
+            android:id="@+id/fabMapTheme"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_map_control_button"
+            android:contentDescription="Map Theme Toggle"
+            android:src="@drawable/ic_theme_toggle"
+            app:tint="@color/warning_amber" />
+
+        <!-- My Location Center -->
+        <ImageButton
+            android:id="@+id/fabMyLocation"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_map_control_button"
+            android:contentDescription="My Location"
+            android:src="@drawable/ic_crosshair"
+            app:tint="@color/safe_green" />
+    </LinearLayout>
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!--  BOTTOM SELECTED NODE CARD (Sliding / Floating Sheet) -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/cardSelectedNode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/bg_map_node_sheet"
+        android:elevation="16dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible">
+
+        <!-- Top row: Node title + close button -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvSelectedNodeTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Victim #A4F2"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvSelectedNodeRoleBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_role_badge_victim"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:text="SOS ALERT"
+                android:textColor="@color/emergency_red"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btnCloseSelectedNode"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close"
+                android:src="@drawable/ic_close_x"
+                app:tint="@color/text_secondary" />
+        </LinearLayout>
+
+        <!-- Node Telemetry Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvSelectedNodeDistance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📍 350 m away"
+                android:textColor="@color/info_blue"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:text="•"
+                android:textColor="@color/text_hint" />
+
+            <TextView
+                android:id="@+id/tvSelectedNodeHopInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📶 2 hops via mesh"
+                android:textColor="@color/warning_amber"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Coordinates & Timestamp -->
+        <TextView
+            android:id="@+id/tvSelectedNodeDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Lat: 12.9716, Lng: 77.5946 • Updated 1m ago"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <!-- Action Buttons Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
+
+            <!-- Compass Navigate Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnNavigateCompass"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:paddingVertical="12dp"
+                android:text="COMPASS NAVIGATE"
+                android:textColor="@android:color/white"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/action_blue_fill"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_compass_needle"
+                app:iconGravity="textStart"
+                app:iconTint="@color/info_blue"
+                app:strokeColor="@color/action_blue_stroke"
+                app:strokeWidth="1dp" />
+
+            <!-- Rescuer Mark Rescued Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMarkRescued"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:paddingVertical="12dp"
+                android:text="MARK RESCUED"
+                android:textColor="@color/safe_green"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:backgroundTint="@color/action_green_fill"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_check_circle"
+                app:iconGravity="textStart"
+                app:iconTint="@color/safe_green"
+                app:strokeColor="@color/action_green_stroke"
+                app:strokeWidth="1dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

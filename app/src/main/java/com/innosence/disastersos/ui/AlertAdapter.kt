@@ -85,13 +85,17 @@ class AlertAdapter(
             // Navigate button logic
             holder.btnNavigate.visibility = View.VISIBLE
             holder.btnNavigate.setOnClickListener {
-                onNavigateClick?.invoke(packet.latitude, packet.longitude)
+                if (packet.latitude != 0.0 || packet.longitude != 0.0) {
+                    onNavigateClick?.invoke(packet.latitude, packet.longitude)
+                }
             }
 
             // Google Maps button logic
             holder.btnGoogleMaps.visibility = View.VISIBLE
             holder.btnGoogleMaps.setOnClickListener {
-                onMapsClick?.invoke(packet.latitude, packet.longitude)
+                if (packet.latitude != 0.0 || packet.longitude != 0.0) {
+                    onMapsClick?.invoke(packet.latitude, packet.longitude)
+                }
             }
         } else {
             holder.btnMarkRescued.visibility = View.GONE

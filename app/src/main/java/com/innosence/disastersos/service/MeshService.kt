@@ -34,7 +34,7 @@ class MeshService : Service() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var lastLocation: Location? = null
     private val handler = Handler(Looper.getMainLooper())
-    private var listener: MeshServiceListener? = null
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<MeshServiceListener>()
 
     private var lastBroadcastPacket: SOSPacket? = null
     private var currentGossipInterval = GOSSIP_INTERVAL_NORMAL
@@ -144,7 +144,7 @@ class MeshService : Service() {
         meshManager = MeshManager(
             context = this,
             onSOSReceived = { packet -> handleIncomingGossip(packet) },
-            onPeersChanged = { count -> listener?.onPeerCountChanged(count) }
+            onPeersChanged = { count -> notifyPeerCountChanged(count) }
         )
 
         bluetoothMeshManager = BluetoothMeshManager(
@@ -154,7 +154,7 @@ class MeshService : Service() {
             onPeerDiscovered = { _, rssi -> 
                 updateAdaptiveInterval(rssi)
                 val count = bluetoothMeshManager?.getConnectedPeerCount() ?: 0
-                listener?.onPeerCountChanged(count)
+                notifyPeerCountChanged(count)
             }
         )
         bluetoothMeshManager?.initialize()
@@ -162,10 +162,11 @@ class MeshService : Service() {
 
     private fun handleIncomingGossip(packet: SOSPacket) {
         val existing = knowledgeBase[packet.nodeId]
-        if (existing != null && existing.sequenceNumber >= packet.sequenceNumber) return
+        // Only ignore if existing packet from this node is strictly newer
+        if (existing != null && existing.sequenceNumber > packet.sequenceNumber) return
 
         knowledgeBase[packet.nodeId] = packet
-        listener?.onKnowledgeBaseUpdated(knowledgeBase.values.toList())
+        notifyKnowledgeBaseUpdated(knowledgeBase.values.toList())
 
         if (!packet.hasReachedMaxHops()) {
             val relayPacket = packet.incrementHop()
@@ -175,6 +176,26 @@ class MeshService : Service() {
                 bluetoothMeshManager?.broadcastPacket(relayPacket)
             }.start()
         }
+    }
+
+    fun sendManualSOS() {
+        val loc = lastLocation
+        val packet = SOSPacket(
+            nodeId = nodeId,
+            latitude = loc?.latitude ?: 0.0,
+            longitude = loc?.longitude ?: 0.0,
+            batteryLevel = getBatteryLevel(),
+            timestamp = System.currentTimeMillis(),
+            packetType = SOSPacket.TYPE_VICTIM_DATA,
+            hopCount = 0,
+            isCritical = true
+        )
+        sendOwnData(packet)
+        lastBroadcastPacket = packet
+    }
+
+    fun forceStatusRefresh() {
+        broadcastOwnStatus()
     }
 
     fun startRescueOperation() {
@@ -255,7 +276,7 @@ class MeshService : Service() {
 
     private fun sendOwnData(packet: SOSPacket) {
         knowledgeBase[nodeId] = packet
-        listener?.onKnowledgeBaseUpdated(knowledgeBase.values.toList())
+        notifyKnowledgeBaseUpdated(knowledgeBase.values.toList())
         meshManager?.broadcastSOS(packet)
         bluetoothMeshManager?.broadcastPacket(packet)
     }
@@ -265,9 +286,35 @@ class MeshService : Service() {
         return batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
     }
 
+    fun addListener(l: MeshServiceListener) {
+        if (!listeners.contains(l)) {
+            listeners.add(l)
+        }
+        l.onKnowledgeBaseUpdated(knowledgeBase.values.toList())
+    }
+
+    fun removeListener(l: MeshServiceListener) {
+        listeners.remove(l)
+    }
+
     fun setListener(listener: MeshServiceListener?) {
-        this.listener = listener
-        listener?.onKnowledgeBaseUpdated(knowledgeBase.values.toList())
+        if (listener != null) {
+            addListener(listener)
+        } else {
+            listeners.clear()
+        }
+    }
+
+    private fun notifyKnowledgeBaseUpdated(data: List<SOSPacket>) {
+        listeners.forEach {
+            try { it.onKnowledgeBaseUpdated(data) } catch (e: Exception) { Log.e(TAG, "Listener error", e) }
+        }
+    }
+
+    private fun notifyPeerCountChanged(count: Int) {
+        listeners.forEach {
+            try { it.onPeerCountChanged(count) } catch (e: Exception) { Log.e(TAG, "Listener error", e) }
+        }
     }
 
     fun getKnowledgeBase() = knowledgeBase.values.toList()

@@ -54,6 +54,9 @@ dependencies {
     // Location library compatible with SDK 35
     implementation("com.google.android.gms:play-services-location:21.1.0")
 
+    // Free Map SDK (OpenStreetMap / OSMDroid - No API key required)
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+
     implementation("com.google.code.gson:gson:2.10.1")
     testImplementation("junit:junit:4.13.2")
 }

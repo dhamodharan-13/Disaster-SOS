@@ -249,6 +249,7 @@
 
             <!-- ── GPS Location Row ── -->
             <LinearLayout
+                android:id="@+id/cardGpsLocation"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -381,6 +382,29 @@
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/action_blue_stroke"
                 android:visibility="gone" />
+
+            <!-- Free Live Mesh Map Button (For Victims & Rescuers) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOpenMap"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="18dp"
+                android:layout_marginBottom="10dp"
+                android:text="EXPLORE LIVE MESH MAP"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/safe_green"
+                android:letterSpacing="0.02"
+                app:backgroundTint="@color/action_green_fill"
+                app:cornerRadius="18dp"
+                app:rippleColor="@color/safe_green_dim"
+                app:icon="@android:drawable/ic_dialog_map"
+                app:iconTint="@color/safe_green"
+                app:iconGravity="top"
+                app:iconPadding="8dp"
+                app:elevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/action_green_stroke" />
 
         </LinearLayout>
 

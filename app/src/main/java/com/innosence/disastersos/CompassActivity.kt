@@ -30,6 +30,7 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
 
     private val gravity = FloatArray(3)
     private val geomagnetic = FloatArray(3)
+    private var currentAzimuth = 0f
 
     private lateinit var ivCompassArrow: ImageView
     private lateinit var tvDistanceText: TextView
@@ -60,16 +61,35 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
             finish()
         }
 
+        findViewById<MaterialButton>(R.id.btnViewOnMap).setOnClickListener {
+            val mapIntent = android.content.Intent(this, MapActivity::class.java).apply {
+                if (targetLat != 0.0 && targetLng != 0.0) {
+                    putExtra(MapActivity.EXTRA_TARGET_LAT, targetLat)
+                    putExtra(MapActivity.EXTRA_TARGET_LNG, targetLng)
+                }
+            }
+            startActivity(mapIntent)
+        }
+
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         startLocationUpdates()
+        updateDistance()
     }
 
     private fun startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+                if (loc != null) {
+                    myLat = loc.latitude
+                    myLng = loc.longitude
+                    updateDistance()
+                }
+            }
+
             val request = com.google.android.gms.location.LocationRequest.Builder(
                 com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 2000
             ).setMinUpdateDistanceMeters(1f).build()
@@ -95,10 +115,15 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent) {
+        val alpha = 0.9f
         if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-            System.arraycopy(event.values, 0, gravity, 0, event.values.size)
+            gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0]
+            gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1]
+            gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2]
         } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
-            System.arraycopy(event.values, 0, geomagnetic, 0, event.values.size)
+            geomagnetic[0] = alpha * geomagnetic[0] + (1 - alpha) * event.values[0]
+            geomagnetic[1] = alpha * geomagnetic[1] + (1 - alpha) * event.values[1]
+            geomagnetic[2] = alpha * geomagnetic[2] + (1 - alpha) * event.values[2]
         }
 
         val R = FloatArray(9)
@@ -110,6 +135,7 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
 
             val azimuthInRadians = orientation[0]
             val azimuthInDegrees = Math.toDegrees(azimuthInRadians.toDouble()).toFloat()
+            currentAzimuth = currentAzimuth * 0.8f + azimuthInDegrees * 0.2f
 
             if (myLat != 0.0 && myLng != 0.0) {
                 // Calculate bearing to target
@@ -124,9 +150,8 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
 
                 val bearingToTarget = myLocation.bearingTo(targetLocation)
 
-                // Calculate the direction the arrow should point relative to the phone's current orientation
-                val arrowRotation = bearingToTarget - azimuthInDegrees
-
+                // Calculate direction arrow should point relative to phone orientation
+                val arrowRotation = bearingToTarget - currentAzimuth
                 ivCompassArrow.rotation = arrowRotation
             }
         }
@@ -137,6 +162,10 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun updateDistance() {
+        if (myLat == 0.0 && myLng == 0.0) {
+            tvDistanceText.text = "Acquiring location..."
+            return
+        }
         val myLocation = Location("").apply {
             latitude = myLat
             longitude = myLng
@@ -147,6 +176,10 @@ class CompassActivity : AppCompatActivity(), SensorEventListener {
         }
 
         val distance = myLocation.distanceTo(targetLocation)
-        tvDistanceText.text = "%.0f meters".format(distance)
+        if (distance >= 1000) {
+            tvDistanceText.text = "%.2f km".format(distance / 1000)
+        } else {
+            tvDistanceText.text = "%.0f meters".format(distance)
+        }
     }
 }

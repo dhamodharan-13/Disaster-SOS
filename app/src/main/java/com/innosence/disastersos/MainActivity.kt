@@ -82,6 +82,20 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
         setupButtons()
         setupRoleUI()
         
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            meshService?.forceStatusRefresh()
+            updatePeerDisplay()
+            binding.swipeRefreshLayout.isRefreshing = false
+        }
+
+        binding.llHardwareWarning.setOnClickListener {
+            checkAndPromptServices()
+        }
+
+        binding.tvRoleLabel.setOnClickListener {
+            startActivity(Intent(this, com.innosence.disastersos.ui.RoleSelectionActivity::class.java))
+        }
+
         requestPermissions()
         checkAndPromptServices()
         startHardwareMonitoring()
@@ -91,73 +105,14 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
         }
     }
 
-    private fun startAndBindMeshService() {
-        if (isBound) return
-        MeshService.start(this)
-        val intent = Intent(this, MeshService::class.java)
-        bindService(intent, serviceConnection, BIND_AUTO_CREATE)
-    }
-
-    private fun hasRequiredPermissions(): Boolean {
-        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
-            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
-            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
-        }
-        return permissions.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                startAndBindMeshService()
-            } else {
-                Toast.makeText(this, "Permissions required for mesh networking", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun setupAdapters() {
-        // We use alertAdapter to show the list of all phones in the Knowledge Base
-        alertAdapter = AlertAdapter(
-            currentRole, 
-            ::onRescuedClicked, 
-            { lat, lon -> startCompassActivity(lat, lon) },
-            { lat, lon -> openInGoogleMaps(lat, lon) }
-        )
-        binding.rvAlertLog.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = alertAdapter
-        }
-
-        deviceAdapter = DeviceAdapter()
-        binding.rvConnectedDevices.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = deviceAdapter
-        }
-    }
-
-    private fun openInGoogleMaps(lat: Double, lon: Double) {
-        val uri = "google.navigation:q=$lat,$lon"
-        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri))
-        intent.setPackage("com.google.android.apps.maps")
-        
-        try {
-            startActivity(intent)
-        } catch (e: Exception) {
-            // Fallback: If Google Maps app is not installed, open in browser
-            val webUri = "https://www.google.com/maps/dir/?api=1&destination=$lat,$lon"
-            val webIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(webUri))
-            startActivity(webIntent)
-        }
-    }
-
     private fun setupButtons() {
-        // Victim doesn't have a manual SOS button anymore per new workflow
-        binding.btnSOS.visibility = View.GONE
+        // SOS Button for Victim manual trigger
+        binding.btnSOS.setOnClickListener {
+            meshService?.sendManualSOS()
+            setStatusDotColor(R.color.emergency_red)
+            binding.tvStatus.text = "EMERGENCY SOS BROADCASTING!"
+            Toast.makeText(this, "🚨 Emergency SOS Broadcasted to Nearby Mesh Devices!", Toast.LENGTH_LONG).show()
+        }
 
         // Rescuer-only button: START RESCUE
         binding.btnFindVictims.setOnClickListener {
@@ -166,6 +121,48 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
             binding.tvStatus.text = "Rescue Operation Started"
             Toast.makeText(this, "Global Rescue Signal Sent!", Toast.LENGTH_LONG).show()
         }
+
+        // Open Live Mesh Map Button
+        binding.btnOpenMap.setOnClickListener {
+            startMapActivity()
+        }
+
+        // GPS Location Row opens map
+        binding.cardGpsLocation.setOnClickListener {
+            startMapActivity()
+        }
+    }
+
+    private fun setupAdapters() {
+        alertAdapter = AlertAdapter(
+            currentRole = currentRole,
+            onRescueClick = { victimNodeId -> onRescuedClicked(victimNodeId) },
+            onNavigateClick = { lat, lng -> startCompassActivity(lat, lng) },
+            onMapsClick = { lat, lng -> startMapActivity(lat, lng) }
+        )
+        binding.rvAlertLog.layoutManager = LinearLayoutManager(this)
+        binding.rvAlertLog.adapter = alertAdapter
+
+        deviceAdapter = DeviceAdapter()
+        binding.rvConnectedDevices.layoutManager = LinearLayoutManager(this)
+        binding.rvConnectedDevices.adapter = deviceAdapter
+    }
+
+    private fun startAndBindMeshService() {
+        MeshService.start(this)
+        val intent = Intent(this, MeshService::class.java)
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    private fun startMapActivity(targetLat: Double = 0.0, targetLng: Double = 0.0, targetNodeId: String = "") {
+        val intent = Intent(this, MapActivity::class.java).apply {
+            if (targetLat != 0.0 && targetLng != 0.0) {
+                putExtra(MapActivity.EXTRA_TARGET_LAT, targetLat)
+                putExtra(MapActivity.EXTRA_TARGET_LNG, targetLng)
+                putExtra(MapActivity.EXTRA_TARGET_NODE_ID, targetNodeId)
+            }
+        }
+        startActivity(intent)
     }
 
     private fun setupRoleUI() {
@@ -174,6 +171,7 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
             binding.tvRoleLabel.setTextColor(ContextCompat.getColor(this, R.color.safe_green))
             binding.tvRoleLabel.setBackgroundResource(R.drawable.bg_role_badge_rescuer)
             
+            binding.btnSOS.visibility = View.GONE
             binding.btnFindVictims.visibility = View.VISIBLE
             binding.btnFindVictims.text = "START RESCUE"
             
@@ -185,14 +183,13 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
             binding.tvRoleLabel.setTextColor(ContextCompat.getColor(this, R.color.warning_amber))
             binding.tvRoleLabel.setBackgroundResource(R.drawable.bg_role_badge_victim)
             
+            binding.btnSOS.visibility = View.VISIBLE
             binding.btnFindVictims.visibility = View.GONE
             binding.llConnectedDevicesSection.visibility = View.GONE
             
-            setStatusDotColor(R.color.text_secondary)
-            binding.tvStatus.text = "Waiting for Rescuer signal..."
+            setStatusDotColor(R.color.warning_amber)
+            binding.tvStatus.text = "Mesh Protection Active (Victim Mode)"
         }
-        
-        // Alert log recycler is always visible when data is available
     }
 
     // --- MeshServiceListener Callbacks ---
@@ -280,6 +277,29 @@ class MainActivity : AppCompatActivity(), MeshService.MeshServiceListener {
         }
         val notGranted = permissions.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (notGranted.isNotEmpty()) ActivityCompat.requestPermissions(this, notGranted.toTypedArray(), PERMISSION_REQUEST_CODE)
+    }
+
+    private fun hasRequiredPermissions(): Boolean {
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+        }
+        return permissions.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                startAndBindMeshService()
+            }
+        }
     }
 
     private fun checkAndPromptServices() {

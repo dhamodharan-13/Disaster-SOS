@@ -8,23 +8,19 @@ import com.innosence.disastersos.data.SOSPacket
  *  MessageRouter.kt — SOS MESSAGE TRAFFIC CONTROLLER
  * ============================================================================
  *
- *  TANGLISH EXPLANATION:
- *  =====================
- *  MeshManager phone-to-phone connection handle pannum.
- *  MessageRouter decide pannum: "Idhu SOS message ah relay pannumaa venaama?"
+ *  PURPOSE:
+ *  ========
+ *  MessageRouter arbitrates incoming emergency packets, ensuring packets are
+ *  forwarded across the multi-hop mesh while preventing broadcast storms and
+ *  infinite looping.
  *
- *  PROBLEM: "Infinite Loop" — SOS message circular ah bounce aagalaam.
- *  Phone A → B → C → A → B → C → A... (never ending! battery drain!)
- *
- *  SOLUTION: Namma 2 rules follow panrom:
- *  1. "Already seen" check — Same nodeId + timestamp combination oda
- *     SOS already vandhirundha, ignore panrom (duplicate filter)
- *  2. "Max hops" check — SOSPacket la hopCount 10 ku mela pona, stop
- *
- *  ANALOGY:
- *  Post office madhiri — oru letter already deliver aachu na,
- *  same letter ah innoru thadava deliver pannamaatanga la?
- *  Router adhey madhiri — same SOS twice relay pannaadhu.
+ *  LOOP PREVENTION RULES:
+ *  ======================
+ *  1. Duplicate Suppression: Tracks recently observed (nodeId + timestamp)
+ *     signatures. Re-broadcast packets matching known signatures are dropped.
+ *  2. Hop Count Threshold: Drops packets exceeding MAX_HOPS (15) to constrain
+ *     network diameter and conserve battery.
+ *  3. Self-Echo Filter: Automatically drops packets originated by this device.
  * ============================================================================
  */
 
@@ -34,40 +30,30 @@ class MessageRouter {
         private const val TAG = "MessageRouter"
 
         /*
-         * MAX_CACHE_SIZE — Maximum number of "seen" SOS IDs we remember.
-         * Memory overflow aagaama irukka, 1000 ku mela ponaa
-         * oldest entries delete pannidurom.
+         * MAX_CACHE_SIZE — Maximum number of unique SOS packet signatures
+         * retained in memory before purging the oldest entries (LRU-style).
          */
         private const val MAX_CACHE_SIZE = 1000
     }
 
     /*
-     * seenMessages — "Already paathaachu" list.
-     * Key = "nodeId:timestamp" (unique combination per SOS)
-     * LinkedHashSet use panrom because:
-     *   - Duplicates automatically reject aagum (Set property)
-     *   - Insertion order maintain aagum (Linked property)
-     *   - Oldest entry first irukum, easy ah remove pannalam
+     * seenMessages: Set of observed packet keys ("nodeId:timestamp").
+     * LinkedHashSet maintains insertion order for predictable cache eviction.
      */
     private val seenMessages = LinkedHashSet<String>()
 
     /*
      * ────────────────────────────────────────────────────────────────
-     *  shouldRelay() — "Idhu SOS ah forward pannumaa?"
+     *  shouldRelay() — Packet Forwarding Policy
      * ────────────────────────────────────────────────────────────────
+     *  Evaluates whether an incoming packet should be retransmitted:
+     *  1. Has this packet already been processed? (Duplicate check)
+     *  2. Has the packet exceeded the maximum hop count? (Range boundary)
+     *  3. Was this packet originated by this node? (Self-echo check)
      *
-     *  TANGLISH:
-     *  Oru SOS message vandhaa, 3 questions kekkurom:
-     *  1. Idhu already vandhirukkaa? (duplicate check)
-     *  2. Maximum hops reach aachirukkaa? (distance check)
-     *  3. Idhu namma own message dhaana? (self-echo check)
-     *
-     *  3 um "NO" na → relay panrom ✅
-     *  Yeavadhu onnu "YES" na → drop panrom ❌ (battery save)
-     *
-     *  @param packet — Incoming SOS packet
-     *  @param ownNodeId — Namma phone oda node ID
-     *  @return true = relay pannu, false = ignore pannu
+     *  @param packet Incoming SOS packet
+     *  @param ownNodeId Local device node identifier
+     *  @return true if packet is novel and eligible for relay; false otherwise
      */
     @Synchronized
     fun shouldRelay(packet: SOSPacket, ownNodeId: String): Boolean {

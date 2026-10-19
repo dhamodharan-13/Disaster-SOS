@@ -141,12 +141,61 @@ class BluetoothMeshManager(
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
             .build()
 
+        val initialPacket = SOSPacket(
+            nodeId = nodeId,
+            latitude = 0.0,
+            longitude = 0.0,
+            batteryLevel = 100,
+            timestamp = System.currentTimeMillis()
+        )
+        val compactData = CompactBeaconPayload.encode(initialPacket)
+
         val data = AdvertiseData.Builder()
-            .setIncludeDeviceName(false)  // Save space in the ad packet
+            .setIncludeDeviceName(false)
+            .setIncludeTxPowerLevel(false)
+            .addManufacturerData(CompactBeaconPayload.COMPANY_ID, compactData)
+            .build()
+
+        val scanResponse = AdvertiseData.Builder()
             .addServiceUuid(ParcelUuid(SERVICE_UUID))
             .build()
 
-        bleAdvertiser?.startAdvertising(settings, data, advertiseCallback)
+        bleAdvertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback)
+    }
+
+    /**
+     * Broadcasts a 23-byte compact SOS beacon into the air with zero pairing or connection delay.
+     * All scanning devices in range receive this telemetry simultaneously in the same millisecond.
+     */
+    fun broadcastCompactBeacon(packet: SOSPacket) {
+        val advertiser = bleAdvertiser ?: return
+        val compactBytes = CompactBeaconPayload.encode(packet)
+
+        val settings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+            .setConnectable(true)
+            .setTimeout(0)
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+            .build()
+
+        val advertiseData = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)
+            .setIncludeTxPowerLevel(false)
+            .addManufacturerData(CompactBeaconPayload.COMPANY_ID, compactBytes)
+            .build()
+
+        val scanResponse = AdvertiseData.Builder()
+            .addServiceUuid(ParcelUuid(SERVICE_UUID))
+            .build()
+
+        try {
+            advertiser.stopAdvertising(advertiseCallback)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping previous advertising", e)
+        }
+
+        advertiser.startAdvertising(settings, advertiseData, scanResponse, advertiseCallback)
+        Log.i(TAG, "⚡ Fast BLE Beacon Broadcasted: Node ${packet.nodeId}, Hop ${packet.hopCount}, Lat ${packet.latitude}, Lng ${packet.longitude}")
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
@@ -164,36 +213,54 @@ class BluetoothMeshManager(
     // ────────────────────────────────────────────────────────────────
     //  BLE SCANNING — "WHO'S NEARBY?" listener
     // ────────────────────────────────────────────────────────────────
-    private fun startScanning() {
+    fun setScanningActive(active: Boolean) {
+        if (active) {
+            startScanning()
+        } else {
+            stopScanning()
+        }
+    }
+
+    fun isCurrentlyScanning(): Boolean = isScanning
+
+    fun startScanning() {
+        if (isScanning) return
         bleScanner = bluetoothAdapter?.bluetoothLeScanner
         if (bleScanner == null) {
             Log.e(TAG, "❌ BLE Scanner not available")
             return
         }
 
-        val filter = ScanFilter.Builder()
+        val serviceFilter = ScanFilter.Builder()
             .setServiceUuid(ParcelUuid(SERVICE_UUID))
             .build()
 
-        val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+        val beaconFilter = ScanFilter.Builder()
+            .setManufacturerData(CompactBeaconPayload.COMPANY_ID, byteArrayOf(CompactBeaconPayload.MAGIC_BYTE))
             .build()
 
-        bleScanner?.startScan(listOf(filter), settings, scanCallback)
-        isScanning = true
-        Log.i(TAG, "✅ BLE Scanning started")
+        val settings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
 
-        // Schedule periodic restart to avoid Android's scan timeout
-        handler.postDelayed({
-            if (isScanning) {
-                stopScanning()
-                startScanning()
-            }
-        }, SCAN_RESTART_INTERVAL_MS)
+        try {
+            bleScanner?.startScan(listOf(serviceFilter, beaconFilter), settings, scanCallback)
+            isScanning = true
+            Log.i(TAG, "✅ BLE Scanning started with dual filters (GATT Service + Fast Beacon)")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to start BLE scan", e)
+            isScanning = false
+        }
     }
 
-    private fun stopScanning() {
-        bleScanner?.stopScan(scanCallback)
+    fun stopScanning() {
+        if (!isScanning) return
+        try {
+            bleScanner?.stopScan(scanCallback)
+            Log.d(TAG, "⏸️ BLE Scanning paused (duty cycle)")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping BLE scan", e)
+        }
         isScanning = false
     }
 
@@ -210,7 +277,25 @@ class BluetoothMeshManager(
                 // Notify the UI about this discovered peer
                 onPeerDiscovered(address, rssi)
 
-                // If not already connected, try to connect
+                // 1. FAST ZERO-HANDSHAKE BEACON EXTRACTION (0ms Delay)
+                val mfgData = scanResult.scanRecord?.getManufacturerSpecificData(CompactBeaconPayload.COMPANY_ID)
+                if (mfgData != null && mfgData.isNotEmpty()) {
+                    val beaconPacket = CompactBeaconPayload.decode(mfgData)
+                    if (beaconPacket != null) {
+                        if (messageRouter.shouldRelay(beaconPacket, nodeId)) {
+                            Log.i(TAG, "⚡ Fast 0-sec BLE Beacon captured from $address! Node: ${beaconPacket.nodeId}, Hops: ${beaconPacket.hopCount}")
+                            handler.post { onPacketReceived(beaconPacket) }
+
+                            // Instant Multi-Hop Relay: if not at max hops, immediately forward the beacon into the air
+                            if (!beaconPacket.hasReachedMaxHops()) {
+                                val relayPacket = beaconPacket.incrementHop()
+                                broadcastCompactBeacon(relayPacket)
+                            }
+                        }
+                    }
+                }
+
+                // 2. CONNECT FOR EXTENDED GATT DATA (if not already connected)
                 if (!connectedDevices.containsKey(address)) {
                     Log.i(TAG, "📡 Found peer: $address (RSSI: $rssi dBm, ~${estimateDistance(rssi)}m)")
                     connectToDevice(device)
@@ -236,6 +321,7 @@ class BluetoothMeshManager(
         val characteristic = BluetoothGattCharacteristic(
             CHARACTERISTIC_UUID,
             BluetoothGattCharacteristic.PROPERTY_WRITE or
+                    BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE or
                     BluetoothGattCharacteristic.PROPERTY_READ or
                     BluetoothGattCharacteristic.PROPERTY_NOTIFY,
             BluetoothGattCharacteristic.PERMISSION_WRITE or
@@ -397,11 +483,8 @@ class BluetoothMeshManager(
 
                 // Check if we should relay this message (prevents loops)
                 if (messageRouter.shouldRelay(packet, nodeId)) {
-                    // Deliver to our app's callback
+                    // Deliver to our app's central MeshService callback
                     handler.post { onPacketReceived(packet) }
-
-                    // Relay to all OTHER connected devices (not the sender)
-                    relayToOthers(packet.incrementHop(), senderAddress)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to parse incoming packet: ${e.message}")
@@ -410,23 +493,31 @@ class BluetoothMeshManager(
     }
 
     // ────────────────────────────────────────────────────────────────
-    //  BROADCAST — Send a packet to ALL connected peers
+    //  BROADCAST — Send a packet to connected peers
     // ────────────────────────────────────────────────────────────────
-    fun broadcastPacket(packet: SOSPacket) {
+    fun broadcastPacket(packet: SOSPacket, excludeAddress: String? = null) {
+        // 1. FAST ZERO-HANDSHAKE BLE BEACON (Instant 0ms relay to all nearby listening phones)
+        broadcastCompactBeacon(packet)
+
+        // 2. GATT CHUNK STREAMING (to all active connections)
         val jsonString = gson.toJson(packet) + "<<END>>"
         val data = jsonString.toByteArray(Charset.forName("UTF-8"))
 
         messageRouter.markAsSeen("${packet.nodeId}:${packet.timestamp}")
 
         connectedDevices.forEach { (address, gatt) ->
-            sendDataToDevice(gatt, data)
-            Log.i(TAG, "📤 Sent ${packet.packetType} to $address")
+            if (address != excludeAddress) {
+                sendDataToDevice(gatt, data)
+                Log.i(TAG, "📤 Sent ${packet.packetType} to $address via GATT")
+            }
         }
 
         // Also try to write via GATT server to server-connected devices
         serverConnectedDevices.forEach { device ->
-            sendDataFromServer(device, data)
-            Log.i(TAG, "📤 Sent ${packet.packetType} to server-client ${device.address}")
+            if (device.address != excludeAddress) {
+                sendDataFromServer(device, data)
+                Log.i(TAG, "📤 Sent ${packet.packetType} to server-client ${device.address} via GATT")
+            }
         }
         
         Log.i(TAG, "📡 Broadcast complete — sent to ${connectedDevices.size + serverConnectedDevices.size} peers")

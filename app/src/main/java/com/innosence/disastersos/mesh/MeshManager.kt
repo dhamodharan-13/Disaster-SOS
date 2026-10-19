@@ -29,53 +29,47 @@ import java.net.Socket
  *  MeshManager.kt — THE BUCKET BRIGADE CONTROLLER
  * ============================================================================
  *
- *  TANGLISH EXPLANATION:
- *  =====================
- *  Idhu namma app oda "postman" — oru phone la irundhu innooru phone ku
- *  SOS message anuppura velai idhu dhan pannum.
+ *  ARCHITECTURE OVERVIEW:
+ *  ======================
+ *  MeshManager acts as the primary Wi-Fi Direct network orchestrator, enabling
+ *  peer-to-peer discovery and multi-hop SOS packet dissemination without
+ *  internet or cellular infrastructure.
  *
- *  EPDI WORK AAGUM (Simple Version):
- *  ══════════════════════════════════
+ *  HOW IT WORKS:
+ *  =============
+ *  Step 1: DISCOVERY (Peer Detection)
+ *  ─────────────────────────────────
+ *  - Uses Wi-Fi Direct (Wi-Fi P2P) Service Discovery protocols.
+ *  - Radio emits beacon frames to continuously identify nearby mobile devices.
+ *  - Populates discovered peer tables with reachable nodes.
  *
- *  Step 1: DISCOVERY (Nearby phones ah thedhuradhu)
- *  ─────────────────
- *  Phone A solum: "Yaaravadhu irukkeengala?" (discoverPeers)
- *  Phone B, C respond pannuvanga: "Naanga irukom!" (peer list)
- *  → Idhu Wi-Fi Direct oda "Service Discovery" protocol use pannum.
- *     Phone oda Wi-Fi chip special "beacon" signals anuppum.
- *     Nearby phones ah automatically detect pannum.
+ *  Step 2: CONNECTION (Dynamic Ad-hoc Grouping)
+ *  ───────────────────────────────────────────
+ *  - Negotiates Wi-Fi Direct Group formation.
+ *  - One node dynamically becomes the Group Owner (acting as an autonomous local AP).
+ *  - Other nodes join as P2P Clients to establish TCP/IP communication channels.
  *
- *  Step 2: CONNECTION (Connect aaguradhu)
- *  ──────────────────
- *  Phone A says: "Phone B, naan connect aagalamaa?" (connect)
- *  Phone B says: "OK da, vaa!" (accept)
- *  → Wi-Fi Direct la, oru phone "Group Owner" (GO) aagum = mini router.
- *     Marudha phone "Client" aagum. Aprom TCP/IP use panni data anuppalam.
+ *  Step 3: DATA TRANSMISSION & RELAY (Gossip Flooding)
+ *  ──────────────────────────────────────────────────
+ *  - Encodes SOSPacket telemetry into JSON / compact binary payload.
+ *  - Transmits via local TCP sockets across peer endpoints.
+ *  - Relays incoming alerts across hops up to the defined MAX_HOPS threshold.
  *
- *  Step 3: DATA TRANSFER (SOS message anuppuradhu)
- *  ────────────────────
- *  Phone A creates SOSPacket → JSON string aakkum → TCP socket vazhiya
- *  Phone B ku anuppum → Phone B JSON ah paathudtu SOSPacket aakkum →
- *  Alert Log la display pannum → Vera phones ku relay pannum.
- *
- *  IMPORTANT CONCEPTS:
- *  ═══════════════════
- *  - WifiP2pManager = Android oda official Wi-Fi Direct API
- *  - BroadcastReceiver = "Event listener" — Wi-Fi state change aana
- *    Android nammaku signal anuppum, namma react pannurom
- *  - TCP Socket = Internet la use panra same technology, but here
- *    it works LOCALLY between two phones without internet
- *  - ServerSocket = "Phone B oru kadai open pannum" (listening)
- *  - Socket = "Phone A kadai ku pogum" (connecting)
+ *  KEY CONCEPTS:
+ *  =============
+ *  - WifiP2pManager: Android framework API for Wi-Fi P2P hardware state.
+ *  - BroadcastReceiver: Event bus listening for P2P connection and peer change intents.
+ *  - ServerSocket: Persistent listener accepting incoming telemetry from neighboring peers.
+ *  - Socket: Ephemeral client connections transmitting alert packets directly to peer IPs.
  * ============================================================================
  */
 
 class MeshManager(
     private val context: Context,
     /*
-     * Callbacks — "Enna nadanthaa ennaku sollu" functions.
-     * onSOSReceived: Vera phone irundhu SOS vandhaa idha call pannu
-     * onPeersChanged: Nearby phones count change aana idha call pannu
+     * Callbacks:
+     * - onSOSReceived: Invoked when a valid telemetry/distress packet is received from a peer.
+     * - onPeersChanged: Invoked when the count of active or discovered peers changes.
      */
     private val onSOSReceived: (SOSPacket) -> Unit,
     private val onPeersChanged: (Int) -> Unit
@@ -84,15 +78,8 @@ class MeshManager(
         private const val TAG = "MeshManager"
 
         /*
-         * SERVER_PORT — TCP server oda port number.
-         *
-         * TANGLISH: Port nu enna? Oru building la rooms madhiri.
-         * Building address = IP address. Room number = Port.
-         * "8888 room la SOS messages vangikurom" nu solrom.
-         *
-         * 8888 choose pannom because:
-         * - Well-known ports (0-1023) system use pannum, avoid pannanum
-         * - 8888 easy to remember, usually not used by other apps
+         * SERVER_PORT: Port number for local TCP socket listening.
+         * Default: 8888 (standard non-privileged port commonly used for local P2P services).
          */
         private const val SERVER_PORT = 8888
 
@@ -123,18 +110,11 @@ class MeshManager(
     private var isConnected = false
 
     /*
-     * BroadcastReceiver — Android oda EVENT SYSTEM.
-     *
-     * TANGLISH:
-     * Android la "something happened" nu signal varum — adhukku
-     * "Broadcast" nu per. Namma "Receiver" register pannom, adhunala
-     * relevant events nammaku varum.
-     *
-     * Wi-Fi Direct la 4 main events irukku:
-     * 1. WIFI_P2P_STATE_CHANGED → Wi-Fi Direct ON/OFF aana
-     * 2. WIFI_P2P_PEERS_CHANGED → Nearby phones list change aana
-     * 3. WIFI_P2P_CONNECTION_CHANGED → Connection status change aana
-     * 4. WIFI_P2P_THIS_DEVICE_CHANGED → Our own device info change aana
+     * BroadcastReceiver for Wi-Fi Direct framework events:
+     * 1. WIFI_P2P_STATE_CHANGED: Wi-Fi P2P hardware state toggled ON/OFF.
+     * 2. WIFI_P2P_PEERS_CHANGED: Nearby reachable peer device list updated.
+     * 3. WIFI_P2P_CONNECTION_CHANGED: Group formation or connection status changed.
+     * 4. WIFI_P2P_THIS_DEVICE_CHANGED: Current device network configuration changed.
      */
     private val wifiP2pReceiver = object : BroadcastReceiver() {
         @SuppressLint("MissingPermission")
@@ -217,20 +197,18 @@ class MeshManager(
 
     /*
      * ────────────────────────────────────────────────────────────────
-     *  init {} — Constructor, object create aanavudan run aagum
+     *  init {} — Component initialization
      * ────────────────────────────────────────────────────────────────
-     *  TANGLISH: Class oda "birth" — object piranthavudan setup panrom.
-     *  Wi-Fi Direct manager grab panrom, channel open panrom,
-     *  BroadcastReceiver register panrom.
+     *  Initializes Wi-Fi P2P manager, communication channel, and event receiver.
      */
     init {
-        // Wi-Fi Direct system service grab panrom
+        // Obtain Wi-Fi Direct system service
         wifiP2pManager = context.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
 
-        // Channel open panrom — namma app ku Wi-Fi Direct ku naduvula communication pipe
+        // Initialize communication channel with Wi-Fi P2P framework
         channel = wifiP2pManager?.initialize(context, Looper.getMainLooper(), null)
 
-        // BroadcastReceiver register panrom — Wi-Fi events kekkurom
+        // Register broadcast receiver for Wi-Fi P2P system intents
         val intentFilter = IntentFilter().apply {
             addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
             addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
@@ -325,107 +303,52 @@ class MeshManager(
 
     /*
      * ────────────────────────────────────────────────────────────────
-     *  broadcastSOS() — SOS MESSAGE ANUPPURADHU
+     *  broadcastSOS() — SOS Packet Dissemination
      * ────────────────────────────────────────────────────────────────
-     *
-     *  TANGLISH:
-     *  Idhu dhan MAIN function — SOS packet ah ellaa connected phones
-     *  ku anuppurom. 
-     *
-     *  Steps:
-     *  1. SOSPacket ah JSON string aakkurom (serialize)
-     *  2. Discovered peers list la loop panrom
-     *  3. Ovvoru peer ku TCP socket open panni JSON string anuppurom
-     *
-     *  WHY JSON?
-     *  JSON = JavaScript Object Notation. Idhu oru universal format —
-     *  Android, iPhone, laptop, server — ellaam JSON purinjukkum.
-     *  Example: {"nodeId":"abc123","confidence":92}
-     *
-     *  WHY TCP?
-     *  TCP = Transmission Control Protocol. Idhu "guaranteed delivery"
-     *  kudukum — message reach aana confirm pannum. UDP la message
-     *  lost aagalaam, but SOS message lost aagakkoodaadhu!
+     *  Serializes the SOSPacket and sends it across connected Wi-Fi Direct peers
+     *  over reliable TCP sockets.
      */
+    // Track IP addresses of connected clients (for Group Owner broadcasting)
+    private val clientIPs = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     fun broadcastSOS(packet: SOSPacket) {
         val jsonString = gson.toJson(packet)
-        Log.d(TAG, "📤 Broadcasting SOS: $jsonString")
+        Log.d(TAG, "📤 Broadcasting SOS via Wi-Fi Direct: $jsonString")
 
-        // Background thread la anuppurom — network operations main thread la pannakkoodaadhu
         Thread {
-            for (peer in discoveredPeers) {
-                try {
-                    sendToPeer(peer, jsonString)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to send to ${peer.deviceName}: ${e.message}")
-                }
-            }
-        }.start()
-    }
-
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  sendToPeer() — SINGLE PHONE KU MESSAGE ANUPPURADHU
-     * ────────────────────────────────────────────────────────────────
-     *
-     *  TANGLISH:
-     *  TCP Socket use panni oru specific phone ku JSON string anuppurom.
-     *
-     *  Socket connection = "Phone call" madhiri:
-     *  1. Number dial panrom (Socket connect to IP:PORT)
-     *  2. Line connect aagum
-     *  3. Message solrom (write JSON string)
-     *  4. Phone cut panrom (close socket)
-     */
-    private fun sendToPeer(peer: WifiP2pDevice, jsonString: String) {
-        try {
-            // In a real P2P scenario, we'd resolve the peer's IP first
-            // For now, we use the group owner's address
             wifiP2pManager?.requestConnectionInfo(channel) { info ->
                 if (info.isGroupOwner) {
-                    Log.d(TAG, "We are the Group Owner, skipping TCP client send to avoid echoing to self")
-                    return@requestConnectionInfo
-                }
-
-                val groupOwnerAddress = info.groupOwnerAddress?.hostAddress ?: return@requestConnectionInfo
-
-                Thread {
+                    // Group Owner broadcasts to all recorded client IPs
+                    for (clientIp in clientIPs) {
+                        try {
+                            Socket(clientIp, SERVER_PORT).use { socket ->
+                                val writer = PrintWriter(socket.getOutputStream(), true)
+                                writer.println(jsonString)
+                                writer.flush()
+                                Log.d(TAG, "✅ SOS sent to client IP $clientIp")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to send to client $clientIp: ${e.message}")
+                        }
+                    }
+                } else {
+                    // Client sends to Group Owner
+                    val groupOwnerAddress = info.groupOwnerAddress?.hostAddress ?: return@requestConnectionInfo
                     try {
                         Socket(groupOwnerAddress, SERVER_PORT).use { socket ->
                             val writer = PrintWriter(socket.getOutputStream(), true)
                             writer.println(jsonString)
                             writer.flush()
-                            Log.d(TAG, "✅ SOS sent to ${peer.deviceName}")
+                            Log.d(TAG, "✅ SOS sent to Group Owner at $groupOwnerAddress")
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "❌ Socket send failed: ${e.message}")
+                        Log.e(TAG, "❌ Socket send to Group Owner failed: ${e.message}")
                     }
-                }.start()
+                }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Send failed: ${e.message}")
-        }
+        }.start()
     }
 
-    /*
-     * ────────────────────────────────────────────────────────────────
-     *  startServer() — INCOMING SOS MESSAGES KU LISTEN PANRADHU
-     * ────────────────────────────────────────────────────────────────
-     *
-     *  TANGLISH:
-     *  Oru kadai open panra madhiri — "SOS messages vanga ready!" 🏪
-     *  ServerSocket port 8888 la open pannum. Vera phone connect
-     *  aana, JSON string read pannum, SOSPacket aakkum, callback
-     *  vazhiya MainActivity ku anuppum.
-     *
-     *  Idhu continuous loop la run aagum — eppovum ready ah irukum
-     *  incoming messages ku.
-     *
-     *  WHY SERVER-CLIENT MODEL?
-     *  Wi-Fi Direct la, "Group Owner" server madhiri act pannum.
-     *  Marudha phones (clients) server ku connect panni data anuppum.
-     *  Server continuously listen pannum, client vandhaa data vaangum.
-     */
     private fun startServer() {
         if (isServerRunning) return
 
@@ -438,26 +361,24 @@ class MeshManager(
 
                 while (isServerRunning) {
                     try {
-                        // accept() = "Wait till someone connects" — blocks here.
-                        // We shouldn't set timeout here because we WANT it to block and wait for connections
                         val clientSocket = serverSocket?.accept() ?: break
                         
                         clientSocket.use { socket ->
-                            // Set timeout ON THE CLIENT SOCKET so we don't block forever if a peer drops connection mid-transfer
+                            val remoteIp = socket.inetAddress?.hostAddress
+                            if (remoteIp != null) {
+                                clientIPs.add(remoteIp)
+                            }
                             socket.soTimeout = 5000
 
-                            // Vera phone connect aachu! Data read panrom
                             val reader = BufferedReader(
                                 InputStreamReader(socket.getInputStream())
                             )
                             val jsonString = reader.readLine()
 
                             if (jsonString != null) {
-                                // JSON string ah SOSPacket object aakkurom (deserialize)
                                 val packet = gson.fromJson(jsonString, SOSPacket::class.java)
                                 Log.d(TAG, "📥 SOS RECEIVED from node ${packet.nodeId}!")
 
-                                // MainActivity ku callback vazhiya alert anuppurom
                                 onSOSReceived(packet)
                             }
                         }

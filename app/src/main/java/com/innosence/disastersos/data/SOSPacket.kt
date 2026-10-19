@@ -28,6 +28,6 @@ data class SOSPacket(
 
     fun incrementHop(): SOSPacket = copy(hopCount = hopCount + 1)
     fun hasReachedMaxHops(): Boolean = hopCount >= MAX_HOPS
-    fun getUniqueKey(): String = nodeId
+    fun getUniqueKey(): String = "$nodeId:$timestamp"
     
 }
