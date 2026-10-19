@@ -1,126 +1,118 @@
-# DisasterSOS 🚨
-### Zero-Infrastructure Offline Emergency Mesh Network for Disaster Blackouts
+# DisasterSOS
 
-[![Android](https://img.shields.io/badge/Platform-Android_15_(API_35)-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/Language-Kotlin_2.0-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Network](https://img.shields.io/badge/Mesh-BLE_%2B_Wi--Fi_Direct-007ACC.svg)](#mesh-architecture)
+Zero-infrastructure, peer-to-peer emergency mesh networking system for Android devices during disaster blackouts.
+
+[![Platform](https://img.shields.io/badge/Platform-Android_15_(API_35)-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com)
+[![Language](https://img.shields.io/badge/Language-Kotlin_2.0-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Network](https://img.shields.io/badge/Mesh-BLE_%2B_Wi--Fi_Direct-007ACC.svg)](#architecture)
 [![Map](https://img.shields.io/badge/Map-OpenStreetMap_(OSMDroid)-7EBC6F.svg?logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org)
-[![Privacy](https://img.shields.io/badge/Privacy-100%25_Offline_%2F_Zero_Cloud-success.svg)](#privacy--security)
 
-DisasterSOS is a decentralized, zero-infrastructure emergency mesh communication system designed for acute disaster scenarios (earthquakes, cyclones, floods, and grid collapses). When cellular towers and internet connections go down, DisasterSOS turns ordinary Android smartphones into resilient multi-hop relays that transmit distress signals, GPS coordinates, and battery telemetry across miles to find survivors.
-
----
-
-## 🌟 Key Capabilities
-
-* 📡 **Dual-Layer Hybrid Mesh Relay**: Combines high-speed Wi-Fi Direct (P2P) connections with zero-handshake 23-byte Bluetooth Low Energy (BLE) advertisement flooding.
-* 🗺️ **100% Free & Offline Mapping**: Uses OpenStreetMap (`osmdroid`) with automatic local tile caching—**no Google Maps API keys or cloud billing accounts needed**.
-* 🧭 **Tactical Compass Guidance**: Real-time magnetometer orientation vector that points directly toward victim coordinates with live distance estimation.
-* 🔋 **Ultra-Low Battery Consumption**:
-  * **Tri-Tier Adaptive Duty Cycling**: Dynamically dials radio scanning down from 20s to 90s based on battery level, extending device survival past 48+ hours.
-  * **Accelerometer-Gated GPS**: Motion sensors sleep power-hungry GPS radios whenever a trapped survivor is stationary, awakening only on movement.
-  * **Emergency Burst Mode**: 180-second continuous broadcast surge when an active SOS alert is triggered.
-* 🛡️ **Intelligent Loop Suppression**: LRU signature caching and hop-limit counters (MAX_HOPS = 15) prevent broadcast storms and infinite message bouncing.
+DisasterSOS is an ad-hoc emergency communication application built for scenarios where cellular networks and internet connectivity are unavailable (such as earthquakes, cyclones, and floods). The app turns nearby Android devices into multi-hop mesh relays to broadcast distress alerts, GPS coordinates, and battery status to rescuers.
 
 ---
 
-## 🏗️ Architecture & Network Flow
+## Features
+
+- **Dual-Layer Hybrid Mesh Relay**: Uses Wi-Fi Direct for high-bandwidth local connections and Bluetooth Low Energy (BLE) advertisement flooding for zero-handshake broadcasts.
+- **Offline Mapping (OSMDroid)**: Built with OpenStreetMap and local tile caching. Operates fully offline without Google Maps API keys or cloud billing.
+- **Compass Guidance**: Computes magnetic azimuth vectors toward victim coordinates to guide rescuers without map data.
+- **Power Optimization**:
+  - **Tri-tier Duty Cycling**: Adjusts scan windows based on remaining battery (20s to 90s intervals) to extend uptime up to 48 hours.
+  - **Motion-Gated GPS**: Suspends GPS polling when the phone is stationary to eliminate battery drain, resuming only on physical movement.
+  - **Emergency Burst Mode**: Activates continuous transmission for 180 seconds when an SOS is manually triggered.
+- **Loop and Storm Suppression**: Employs LRU message caching and hop-limit counters (maximum 15 hops) to prevent broadcast loops.
+
+---
+
+## Architecture
 
 ```mermaid
-graph TD
-    classDef sys fill:#e7f5ff,stroke:#228be6,stroke-width:2px;
-    classDef vic fill:#fff4e6,stroke:#ff922b,stroke-width:2px;
-    classDef res fill:#ebfbee,stroke:#40c057,stroke-width:2px;
+graph LR
+    subgraph Victim["1. Victim Node"]
+        A[SOS Trigger] --> B[Motion-Gated GPS]
+        B --> C[23-Byte Beacon]
+    end
 
-    Start([Disaster Event / Cellular Blackout]) --> Svc[Mesh Foreground Service]:::sys
-    Svc --> Net[Dual-Band Hybrid Mesh]:::sys
+    subgraph Mesh["2. Multi-Hop Relay"]
+        C --> D[BLE / Wi-Fi Direct]
+        D --> E{Router: Seen?}
+        E -- No --> F[Increment Hop & Relay]
+        F -.-> D
+        E -- Yes --> G[Drop Duplicate]
+    end
 
-    %% Victim Mode
-    Net --> V_Trigger[Victim Triggers SOS]:::vic
-    V_Trigger --> V_Loc[Motion-Gated GPS Fix]:::vic
-    V_Loc --> V_Payload[23-Byte Compact Beacon]:::vic
-    V_Payload --> V_Broad[BLE Flooding + Wi-Fi Direct]:::vic
-
-    %% Multi-Hop Relay
-    V_Broad --> M_Catch[Nearby Phone Intercepts]:::sys
-    M_Catch --> M_Router{Seen Packet or Max Hops?}:::sys
-    M_Router -- No / New --> M_Relay[Increment Hop & Relay]:::sys
-    M_Relay --> M_Catch
-    M_Router -- Yes / Duplicate --> Drop([Drop Packet]):::sys
-
-    %% Rescuer Dashboard
-    M_Relay -.-> R_Alert[Rescuer Device Alert]:::res
-    R_Alert --> R_Map[Offline Tactical Map View]:::res
-    R_Alert --> R_Compass[Magnetic Compass Bearing]:::res
-    R_Compass --> Rescue([Successful Rescue]):::res
+    subgraph Rescuer["3. Rescuer Node"]
+        F --> H[Alert Log]
+        H --> I[Offline Map & Compass]
+    end
 ```
 
 ---
 
-## 📦 Compact Binary Protocol (23-Byte BLE Beacon)
+## Compact Beacon Protocol
 
-To enable zero-handshake dissemination across devices without requiring prior Bluetooth pairing, DisasterSOS serializes emergency packets into a custom 23-byte binary payload transmitted in BLE Manufacturer Data frames:
+To broadcast without requiring Bluetooth pairing, DisasterSOS encodes emergency telemetry into a 23-byte binary payload within BLE manufacturer data:
 
 | Offset | Field | Type | Description |
-|:---:|:---|:---:|:---|
+|:---|:---|:---|:---|
 | `[0]` | Magic Byte | `UInt8` | Identifier `0x53` (`'S'`) |
-| `[1..6]` | Node ID | `ASCII[6]` | Unique 6-character node identifier |
+| `[1..6]` | Node ID | `ASCII[6]` | Device node identifier |
 | `[7]` | Packet Type | `UInt8` | `1` = Victim SOS, `2` = Rescue Operation |
 | `[8..11]` | Latitude | `Int32` | Scaled coordinate ($\text{lat} \times 10^6$) |
 | `[12..15]` | Longitude | `Int32` | Scaled coordinate ($\text{lng} \times 10^6$) |
-| `[16]` | Battery Level | `UInt8` | State of charge ($0 - 100\%$) |
-| `[17]` | Hop Count | `UInt8` | Bounces across mesh ($0 - 15$) |
+| `[16]` | Battery Level | `UInt8` | Battery percentage ($0 - 100\%$) |
+| `[17]` | Hop Count | `UInt8` | Forwarding hop counter ($0 - 15$) |
 | `[18..21]` | Timestamp | `UInt32` | Epoch seconds |
-| `[22]` | Flags | `UInt8` | Bit 0: Critical Emergency Flag |
+| `[22]` | Flags | `UInt8` | Bit 0: Critical battery flag |
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 app/src/main/
 ├── AndroidManifest.xml
 └── java/com/innosence/disastersos/
-    ├── MainActivity.kt               # Central command dashboard
-    ├── MapActivity.kt                # Offline OSMDroid tactical map & topology
-    ├── CompassActivity.kt            # Magnetometer victim navigation compass
+    ├── MainActivity.kt               # Main dashboard activity
+    ├── MapActivity.kt                # Offline OSMDroid tactical map
+    ├── CompassActivity.kt            # Magnetometer navigation compass
     ├── data/
-    │   ├── SOSPacket.kt              # Core telemetry model
-    │   ├── NodeInfo.kt               # Peer node descriptor
-    │   └── PreferencesHelper.kt      # State & role persistence
+    │   ├── SOSPacket.kt              # Emergency packet data model
+    │   ├── NodeInfo.kt               # Peer device representation
+    │   └── PreferencesHelper.kt      # Role and state persistence
     ├── mesh/
-    │   ├── BluetoothMeshManager.kt   # Dual BLE scanner & GATT mesh coordinator
-    │   ├── MeshManager.kt            # Wi-Fi Direct P2P discovery & socket router
-    │   ├── MessageRouter.kt          # Deduping, hop limits & loop suppression
-    │   └── CompactBeaconPayload.kt   # 23-byte zero-handshake binary serializer
+    │   ├── BluetoothMeshManager.kt   # BLE advertising, scanning, and GATT routing
+    │   ├── MeshManager.kt            # Wi-Fi Direct P2P discovery and sockets
+    │   ├── MessageRouter.kt          # Duplicate suppression and hop limits
+    │   └── CompactBeaconPayload.kt   # 23-byte binary encoder/decoder
     ├── power/
-    │   ├── AdaptivePowerManager.kt   # Tri-tier duty-cycle battery survival engine
-    │   └── MotionGatedLocationController.kt # Accelerometer-gated GPS power controller
+    │   ├── AdaptivePowerManager.kt   # Duty-cycle battery management
+    │   └── MotionGatedLocationController.kt # Accelerometer-gated GPS controller
     ├── service/
-    │   └── MeshService.kt            # Persistent foreground service
+    │   └── MeshService.kt            # Background mesh service
     └── ui/
-        ├── AlertAdapter.kt           # Recycler view for incoming SOS cards
-        ├── DeviceAdapter.kt          # Live nearby device status adapter
-        └── RoleSelectionActivity.kt  # Mode switcher (Victim / Rescuer)
+        ├── AlertAdapter.kt           # Received SOS alert list adapter
+        ├── DeviceAdapter.kt          # Connected peers list adapter
+        └── RoleSelectionActivity.kt  # Role switcher (Victim / Rescuer)
 ```
 
 ---
 
-## 🔒 Privacy & Security
+## Privacy and Security
 
-* **Zero Cloud Dependence**: Operates completely air-gapped without remote servers, APIs, or user accounts.
-* **No Telemetry Leakage**: No analytic trackers, crash reporting beacons, or proprietary identity keys.
-* **Randomized Identifiers**: Device node IDs are randomly generated hashes with no personal device identifiers (IMEI, phone numbers, or hardware serials) broadcast.
+- **No Remote Servers**: Operates strictly peer-to-peer without external cloud infrastructure or backend servers.
+- **No Third-Party Analytics**: Contains no telemetry trackers, advertising SDKs, or cloud crash reporters.
+- **Randomized Node IDs**: Device identifiers are locally generated pseudorandom hashes; hardware identifiers (such as IMEI or MAC addresses) are never transmitted.
 
 ---
 
-## 🛠️ Build & Installation
+## Build and Installation
 
 ### Requirements
-* Android Studio Iguana / Ladybug or newer
-* Android SDK 35 (compileSdk: 35, minSdk: 30)
-* JDK 17
-* Physical Android devices (Wi-Fi Direct and BLE mesh require real hardware radios)
+- Android Studio Ladybug (or newer)
+- Android SDK 35 (compileSdk: 35, minSdk: 30)
+- JDK 17
+- Physical Android devices for hardware testing (Wi-Fi Direct and BLE mesh require real radios)
 
 ### Building from Source
 ```bash
@@ -128,18 +120,18 @@ app/src/main/
 git clone https://github.com/dhamodharan-13/Disaster-SOS.git
 cd Disaster-SOS
 
-# Build Debug APK using Gradle
+# Build Debug APK
 ./gradlew assembleDebug
 ```
 The compiled APK will be generated at `app/build/outputs/apk/debug/app-debug.apk`.
 
 ---
 
-## 📜 Permissions Rationale
+## Permissions
 
-| Permission | Reason |
+| Permission | Purpose |
 |:---|:---|
-| `ACCESS_FINE_LOCATION` | Required to append GPS coordinates to emergency beacons and for Wi-Fi Direct peer discovery. |
-| `BLUETOOTH_SCAN` & `BLUETOOTH_ADVERTISE` | Enables zero-handshake BLE advertisement flooding and GATT peer connectivity. |
-| `NEARBY_WIFI_DEVICES` | Allows Wi-Fi Direct ad-hoc group formation without internet infrastructure. |
-| `FOREGROUND_SERVICE_LOCATION` | Keeps the emergency mesh alive in the background during disaster conditions. |
+| `ACCESS_FINE_LOCATION` | Attaches GPS coordinates to outgoing SOS alerts and enables Wi-Fi Direct discovery. |
+| `BLUETOOTH_SCAN` & `BLUETOOTH_ADVERTISE` | Enables BLE advertisement broadcasting and peer discovery without pairing. |
+| `NEARBY_WIFI_DEVICES` | Manages Wi-Fi Direct peer discovery and group formation. |
+| `FOREGROUND_SERVICE_LOCATION` | Keeps mesh routing and alert reception active in the background. |
